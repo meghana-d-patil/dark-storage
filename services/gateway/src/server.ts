@@ -11,6 +11,8 @@ import { inventoryRouter } from './routes/inventory.js';
 import { warehouseRouter } from './routes/warehouse.js';
 import { receiptsRouter } from './routes/receipts.js';
 import { placementRouter } from './routes/placement.js';
+import { putawaysRouter } from './routes/putaways.js';
+import { tasksRouter } from './routes/tasks.js';
 
 export function createApp(): Express {
   const app = express();
@@ -26,6 +28,9 @@ export function createApp(): Express {
   app.use('/api/warehouse', warehouseRouter);
   app.use('/api/receipts', receiptsRouter);
   app.use('/api/placement', placementRouter);
+  app.use('/api/putaways', putawaysRouter);
+  app.use('/api/tasks', tasksRouter);
+
 
   // Unknown route handler
   app.use((req, res) => {

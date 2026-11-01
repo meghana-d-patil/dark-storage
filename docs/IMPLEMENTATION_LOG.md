@@ -159,3 +159,37 @@
   - `verify:integrity`: exits 0 with all applicable checks PASS.
   - `npm run build -w apps/web`: clean build.
 - Phase 4 gate: PASSED.
+
+
+## Phase 5 — Engine 1 Scheduler + Coordinated Put-away: Execution & Verification
+- Applied migrations:
+  - `migrations/scheduler/s001_scheduler.sql`: created `tasks`, `locks`, `lock_tokens`, `task_events`.
+  - `migrations/warehouse/005_putaway.sql`: created `putaways` table.
+- Implemented Engine 1 Scheduler (`services/engine1-scheduler/src/`):
+  - Lock manager (`domain/lockManager.ts`): atomic single-transaction `tryAcquireAll`, `releaseLocks`, `extendLease`, `sweepExpiredLocks`.
+  - Priority Queue (`domain/queue.ts`): Base scores (LOW: 10, NORMAL: 20, HIGH: 30, URGENT: 40) + aging bonus `min(30, floor(wait_seconds / 15))`.
+  - Task Executor (`domain/executor.ts`): Lease heartbeat, command mapping, 4xx non-retry domain error preservation, 5xx exponential backoff retries (1s, 2s) up to 3 attempts.
+  - Scheduler Engine (`domain/scheduler.ts`): Crash recovery at startup (`recoverCrash` resets RUNNING tasks to QUEUED and cleans dead locks), tick loop with MAX_CONCURRENCY(4) and head-of-line protection, periodic lock sweeper, `waitForTask` long-polling.
+  - Engine 1 API routes: `POST /internal/v1/tasks`, `GET /internal/v1/tasks/:id?wait_ms=`, `GET /internal/v1/tasks`, `GET /internal/v1/locks`, `GET /internal/v1/queue`.
+- Implemented Engine 3 Put-away & Relocation:
+  - `domain/putawayRepo.ts`: `executePutaway` and `executeRelocate` wrapped in `runTx` with full revalidation, movement recording (`PUTAWAY`, `RELOCATE`), audit, and outbox event emissions.
+  - Command routing (`routes/commands.ts`): `POST /internal/v1/commands/:commandName` inside `runIdempotent`.
+  - `routes/putaways.ts`: `GET /internal/v1/putaways`.
+- Implemented Gateway orchestration:
+  - `clients/engine1.ts`: `runViaEngine1` helper with long-polling, 202 async fallback, and 503 error handling.
+  - `routes/putaways.ts`: `POST /api/putaways` (via Engine 1) and `GET /api/putaways`.
+  - `routes/inventory.ts`: `POST /api/inventory/relocate` (via Engine 1).
+  - `routes/tasks.ts`: `GET /api/tasks/:id`, `GET /api/tasks`, `/locks`, `/queue` (MANAGER).
+- Seed demo script:
+  - `scripts/seed-demo.ts`: deterministic intake and put-away for SKUs 1..24, respects shelf status (falls back to active side if shelf maintenance).
+- Web UI:
+  - `AllocationModal.tsx`: Added "Confirm put-away" with 202 async polling, live validation, and idempotency protection.
+  - `ReceivingPage.tsx`: Put-aways tab displaying completed putaways with mode badges.
+  - `InventoryPage.tsx`: Relocate modal with destination bin validation.
+  - `TasksPage.tsx`: Manager tasks dashboard with live tasks, locks, and queue inspection.
+- Verification:
+  - `vitest run tests/phase5/phase5.test.ts`: 30/30 passed.
+  - Full test suite: 95/95 passed.
+  - `verify:integrity`: exits 0 with checks I01, I03, I04, I05, I06, I11, I12 PASS.
+  - `npm run build -w apps/web`: clean build.
+- Phase 5 gate: PASSED.

@@ -16,13 +16,16 @@ export const AppShell: React.FC<AppShellProps> = ({ navLinks }) => {
   };
 
   const isReceivingRole = user?.role === 'MANAGER' || user?.role === 'OPERATOR';
+  const isManager = user?.role === 'MANAGER';
 
   const defaultLinks = [
     { to: '/', label: 'Home', testId: 'nav-home' },
     ...(isReceivingRole ? [{ to: '/receiving', label: 'Receiving', testId: 'nav-receiving' }] : []),
     { to: '/inventory', label: 'Inventory', testId: 'nav-inventory' },
-    { to: '/warehouse', label: 'Warehouse', testId: 'nav-warehouse' }
+    { to: '/warehouse', label: 'Warehouse', testId: 'nav-warehouse' },
+    ...(isManager ? [{ to: '/tasks', label: 'Tasks', testId: 'nav-tasks' }] : [])
   ];
+
 
   const links = navLinks || defaultLinks;
 

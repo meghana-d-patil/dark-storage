@@ -16,7 +16,9 @@ declare global {
 }
 
 export function internalAuth(req: Request, res: Response, next: NextFunction): void {
-  const token = req.headers['x-internal-token'];
+  const authHeader = req.headers.authorization;
+  const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
+  const token = req.headers['x-internal-token'] || bearerToken;
   const requestId = (req.headers['x-request-id'] as string) || crypto.randomUUID();
   req.requestId = requestId;
 

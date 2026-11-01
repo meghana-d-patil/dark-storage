@@ -1,0 +1,14 @@
+const BASE_SCORES: Record<number, number> = {
+  1: 10,
+  2: 20,
+  3: 30,
+  4: 40
+};
+
+export function calculateEffectiveScore(priority: number, createdAt: string, now: Date = new Date()): number {
+  const base = BASE_SCORES[priority] ?? 20;
+  const createdMs = new Date(createdAt).getTime();
+  const waitSeconds = Math.max(0, Math.floor((now.getTime() - createdMs) / 1000));
+  const agingBonus = Math.min(30, Math.floor(waitSeconds / 15));
+  return base + agingBonus;
+}

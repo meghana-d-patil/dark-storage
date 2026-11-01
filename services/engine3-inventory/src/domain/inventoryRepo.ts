@@ -175,11 +175,18 @@ export function stockOut(db: Database.Database, args: StockOutArgs): void {
 
   if (consumeReserved) {
     if (invRow.reserved_qty < qty) {
-      throw new DomainError('INSUFFICIENT_STOCK', 'Not enough reserved stock to consume');
+      throw new DomainError('INSUFFICIENT_STOCK', 'Not enough reserved stock to consume', 400, {
+        reserved: invRow.reserved_qty,
+        requested: qty
+      });
     }
   } else {
-    if (invRow.qty - invRow.reserved_qty < qty) {
-      throw new DomainError('INSUFFICIENT_STOCK', 'Not enough available unreserved stock');
+    const unreserved = invRow.qty - invRow.reserved_qty;
+    if (unreserved < qty) {
+      throw new DomainError('INSUFFICIENT_STOCK', 'Not enough available unreserved stock', 400, {
+        unreserved,
+        requested: qty
+      });
     }
   }
 

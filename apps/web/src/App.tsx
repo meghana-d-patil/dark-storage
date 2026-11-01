@@ -8,6 +8,7 @@ import { HomePage } from './pages/HomePage.js';
 import { InventoryPage } from './pages/InventoryPage.js';
 import { WarehousePage } from './pages/WarehousePage.js';
 import { ReceivingPage } from './pages/ReceivingPage.js';
+import { TasksPage } from './pages/TasksPage.js';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -37,6 +38,7 @@ export const App: React.FC = () => {
             <Route path="/inventory" element={<InventoryPage />} />
             <Route path="/warehouse" element={<WarehousePage />} />
             <Route path="/receiving" element={<ReceivingPage />} />
+            <Route path="/tasks" element={<TasksPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

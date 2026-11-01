@@ -13,7 +13,27 @@ interface ProductItem {
   max_receive_qty: number;
 }
 
+interface PutawayItem {
+  id: number;
+  ref: string;
+  receipt_ref: string;
+  receipt_line_id: number;
+  sku: string;
+  product_name: string;
+  qty: number;
+  source: string;
+  dest_shelf: string;
+  dest_bin: string;
+  selection_mode: 'RECOMMENDED' | 'MANUAL';
+  movement_ref: string;
+  performed_by: string;
+  status: string;
+  created_at: string;
+  receipt_status: string;
+}
+
 interface IntakeLine {
+
   sku: string;
   name: string;
   category: string;
@@ -78,8 +98,9 @@ interface ReceiptDetail {
 }
 
 export const ReceivingPage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'new' | 'staged' | 'receipts'>('new');
+  const [activeTab, setActiveTab] = useState<'new' | 'staged' | 'receipts' | 'putaways'>('new');
   const queryClient = useQueryClient();
+
 
   // Intake Form State
   const [supplier, setSupplier] = useState('');
@@ -119,6 +140,13 @@ export const ReceivingPage: React.FC = () => {
     queryFn: () => apiFetch(`/api/receipts?search=${encodeURIComponent(receiptsSearch)}&limit=50`),
     enabled: activeTab === 'receipts'
   });
+
+  const { data: putawaysData, isLoading: putawaysLoading } = useQuery<{ putaways: PutawayItem[] }>({
+    queryKey: ['putaways'],
+    queryFn: () => apiFetch('/api/putaways'),
+    enabled: activeTab === 'putaways'
+  });
+
 
   const { data: receiptDetail } = useQuery<ReceiptDetail>({
     queryKey: ['receipts', 'detail', selectedReceiptRef],
@@ -238,6 +266,13 @@ export const ReceivingPage: React.FC = () => {
           data-testid="receiving-tab-receipts"
         >
           Receipts
+        </button>
+        <button
+          className={`tab-btn ${activeTab === 'putaways' ? 'active' : ''}`}
+          onClick={() => setActiveTab('putaways')}
+          data-testid="receiving-tab-putaways"
+        >
+          Put-aways
         </button>
       </div>
 
@@ -689,6 +724,65 @@ export const ReceivingPage: React.FC = () => {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Tab 4: Put-aways */}
+      {activeTab === 'putaways' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h3 style={{ margin: 0 }}>Completed Put-aways</h3>
+            <span className="text-muted" style={{ fontSize: 13 }}>
+              {putawaysData?.putaways.length || 0} records
+            </span>
+          </div>
+
+          {putawaysLoading ? (
+            <div style={{ padding: 24, textAlign: 'center' }}>Loading put-aways…</div>
+          ) : !putawaysData || putawaysData.putaways.length === 0 ? (
+            <div className="card" style={{ padding: 24, textAlign: 'center', color: 'var(--text-secondary)' }}>
+              No put-aways recorded yet. Confirm allocations from Staged Stock to complete put-aways.
+            </div>
+          ) : (
+            <div className="table-container">
+              <table data-testid="putaways-table">
+                <thead>
+                  <tr>
+                    <th>Ref</th>
+                    <th>Receipt</th>
+                    <th>Product</th>
+                    <th>Qty</th>
+                    <th>Destination</th>
+                    <th>Mode</th>
+                    <th>Operator</th>
+                    <th>Time</th>
+                    <th>Movement</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {putawaysData.putaways.map((p) => (
+                    <tr key={p.id}>
+                      <td><strong>{p.ref}</strong></td>
+                      <td>{p.receipt_ref}</td>
+                      <td><ProductLabel sku={p.sku} name={p.product_name} /></td>
+                      <td><strong>{p.qty}</strong></td>
+                      <td>{p.dest_shelf} / <strong>{p.dest_bin}</strong></td>
+                      <td>
+                        {p.selection_mode === 'RECOMMENDED' ? (
+                          <span className="badge badge-active">RECOMMENDED</span>
+                        ) : (
+                          <span className="badge badge-warning">MANUAL</span>
+                        )}
+                      </td>
+                      <td>{p.performed_by}</td>
+                      <td style={{ fontSize: 12 }}>{new Date(p.created_at).toLocaleString()}</td>
+                      <td style={{ fontSize: 12, fontFamily: 'monospace' }}>{p.movement_ref}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
     </div>

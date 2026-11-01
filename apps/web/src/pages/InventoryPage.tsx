@@ -61,9 +61,18 @@ export const InventoryPage: React.FC = () => {
   const [recountReason, setRecountReason] = useState('Routine cycle count');
   const [actionError, setActionError] = useState<string | null>(null);
 
+  // Relocate modal state
+  const [relocateModalOpen, setRelocateModalOpen] = useState(false);
+  const [relocateQty, setRelocateQty] = useState(1);
+  const [relocateDestBin, setRelocateDestBin] = useState('');
+  const [relocateValidation, setRelocateValidation] = useState<{ valid: boolean; message: string } | null>(null);
+  const [relocateSubmitting, setRelocateSubmitting] = useState(false);
+
   const user = useAuthStore((s) => s.user);
   const isManager = user?.role === 'MANAGER';
+  const canRelocate = user?.role === 'MANAGER' || user?.role === 'OPERATOR';
   const queryClient = useQueryClient();
+
 
   // Queries
   const { data: summaryData, isLoading: summaryLoading } = useQuery<{ items: SummaryItem[] }>({
@@ -497,6 +506,26 @@ export const InventoryPage: React.FC = () => {
               </div>
             )}
 
+            {canRelocate && binDetail.sku && binDetail.available_qty > 0 && (
+              <div style={{ marginTop: 12 }}>
+                <button
+                  className="btn btn-primary"
+                  style={{ width: '100%' }}
+                  onClick={() => {
+                    setRelocateQty(1);
+                    setRelocateDestBin('');
+                    setRelocateValidation(null);
+                    setActionError(null);
+                    setRelocateModalOpen(true);
+                  }}
+                  data-testid="bin-relocate-btn"
+                >
+                  Relocate Stock
+                </button>
+              </div>
+            )}
+
+
             {/* Recent Movements */}
             <div style={{ marginTop: 20 }}>
               <h4>Recent Movements (last 10)</h4>
@@ -589,6 +618,137 @@ export const InventoryPage: React.FC = () => {
                   data-testid="bin-recount-submit"
                 >
                   Submit Recount
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Relocate Modal (Phase 5) */}
+      {relocateModalOpen && binDetail && (
+        <div className="modal-backdrop">
+          <div className="modal-content" style={{ maxWidth: 500 }}>
+            <h3>Relocate Stock: {binDetail.bin_code}</h3>
+            {actionError && (
+              <div style={{ color: 'var(--accent-danger)', marginBottom: 12 }}>{actionError}</div>
+            )}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 12 }}>
+              <div style={{ fontSize: 13 }}>
+                <div>Product: <strong>{binDetail.product_name}</strong> ({binDetail.sku})</div>
+                <div>Available to Relocate: <strong>{binDetail.available_qty}</strong> units</div>
+              </div>
+
+              <div>
+                <label>Quantity to Relocate:</label>
+                <input
+                  type="number"
+                  min="1"
+                  max={binDetail.available_qty}
+                  className="input"
+                  value={relocateQty}
+                  onChange={(e) => {
+                    const q = parseInt(e.target.value, 10) || 1;
+                    setRelocateQty(q);
+                    if (relocateDestBin) {
+                      // Trigger validation
+                      apiFetch('/api/placement/validate', {
+                        method: 'POST',
+                        body: JSON.stringify({ dest_bin: relocateDestBin.trim(), qty: q, sku: binDetail.sku })
+                      }).then((res: any) => {
+                        setRelocateValidation(res.valid ? { valid: true, message: `Valid — free capacity ${res.free_capacity}` } : { valid: false, message: `Invalid: ${res.reason}` });
+                      }).catch((e: any) => setRelocateValidation({ valid: false, message: e.message }));
+                    }
+                  }}
+                  data-testid="relocate-qty-input"
+                />
+              </div>
+
+              <div>
+                <label>Destination Bin Code:</label>
+                <input
+                  type="text"
+                  className="input"
+                  placeholder="e.g. A-01-L-2"
+                  value={relocateDestBin}
+                  onChange={(e) => {
+                    const dest = e.target.value;
+                    setRelocateDestBin(dest);
+                    if (dest.trim().length >= 5) {
+                      apiFetch('/api/placement/validate', {
+                        method: 'POST',
+                        body: JSON.stringify({ dest_bin: dest.trim(), qty: relocateQty, sku: binDetail.sku })
+                      }).then((res: any) => {
+                        setRelocateValidation(res.valid ? { valid: true, message: `Valid — free capacity ${res.free_capacity}` } : { valid: false, message: `Invalid: ${res.reason}` });
+                      }).catch((e: any) => setRelocateValidation({ valid: false, message: e.message }));
+                    } else {
+                      setRelocateValidation(null);
+                    }
+                  }}
+                  data-testid="relocate-dest-bin-input"
+                />
+              </div>
+
+              {relocateValidation && (
+                <div
+                  style={{
+                    padding: '8px 12px',
+                    borderRadius: 4,
+                    fontSize: 12,
+                    backgroundColor: relocateValidation.valid ? 'rgba(74, 222, 128, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                    color: relocateValidation.valid ? '#4ade80' : '#ef4444',
+                    border: `1px solid ${relocateValidation.valid ? '#4ade80' : '#ef4444'}`
+                  }}
+                  data-testid="relocate-validation-status"
+                >
+                  {relocateValidation.message}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
+                <button
+                  className="btn btn-secondary"
+                  disabled={relocateSubmitting}
+                  onClick={() => setRelocateModalOpen(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="btn btn-primary"
+                  disabled={
+                    relocateSubmitting ||
+                    !relocateDestBin ||
+                    relocateValidation?.valid !== true ||
+                    relocateQty <= 0 ||
+                    relocateQty > binDetail.available_qty
+                  }
+                  onClick={async () => {
+                    setRelocateSubmitting(true);
+                    setActionError(null);
+                    try {
+                      const idemKey = crypto.randomUUID();
+                      await apiFetch('/api/inventory/relocate', {
+                        method: 'POST',
+                        idempotencyKey: idemKey,
+                        body: JSON.stringify({
+                          from_bin: binDetail.bin_code,
+                          to_bin: relocateDestBin.trim(),
+                          qty: relocateQty
+                        })
+                      });
+
+                      setRelocateModalOpen(false);
+                      queryClient.invalidateQueries({ queryKey: ['inventory'] });
+                      refetchBinDetail();
+                    } catch (err: any) {
+                      setActionError(err.message || 'Relocation failed');
+                    } finally {
+                      setRelocateSubmitting(false);
+                    }
+                  }}
+                  data-testid="relocate-confirm-btn"
+                >
+                  {relocateSubmitting ? 'Relocating…' : 'Confirm Relocation'}
                 </button>
               </div>
             </div>

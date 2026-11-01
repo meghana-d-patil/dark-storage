@@ -14,6 +14,8 @@ import { createIntegrityRouter } from './routes/integrity.js';
 import { createInventoryRouter } from './routes/inventory.js';
 import { createWarehouseRouter } from './routes/warehouse.js';
 import { createReceiptsRouter } from './routes/receipts.js';
+import { createCommandsRouter } from './routes/commands.js';
+import { createPutawaysRouter } from './routes/putaways.js';
 
 export function createApp(db: Database.Database): Express {
   const app = express();
@@ -30,6 +32,8 @@ export function createApp(db: Database.Database): Express {
   app.use('/internal/v1/inventory', createInventoryRouter(db));
   app.use('/internal/v1/warehouse', createWarehouseRouter(db));
   app.use('/internal/v1/receipts', createReceiptsRouter(db));
+  app.use(createCommandsRouter(db));
+  app.use('/internal/v1/putaways', createPutawaysRouter(db));
 
   // Error handler
   app.use(errorHandler);

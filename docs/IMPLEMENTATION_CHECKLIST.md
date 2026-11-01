@@ -6,7 +6,7 @@ Track progress strictly phase-by-phase. Tick items and record real command test 
 - [x] Phase 2: Inventory core (stock model, invariants, ledger, bin management, read APIs, Inventory UI, P2-T01..T20) - PASSED (20/20 tests green, verify:integrity exits 0)
 - [x] Phase 3: Receiving (multi-line intake, staging, receipts, Receiving UI, P3-T01..T16) - PASSED (13/13 tests green, total 49/49 green, verify:integrity exits 0)
 - [x] Phase 4: Engine 2 allocation (filtering, scoring, explanation, manual selection, P4-T01..T17) - PASSED (16/16 tests green, total 65/65 green, verify:integrity exits 0)
-- [ ] Phase 5: Engine 1 + put-away (scheduler, locks, recovery, put-away, relocation, P5-T01..T30)
+- [x] Phase 5: Engine 1 + put-away (scheduler, locks, recovery, put-away, relocation, P5-T01..T30) - PASSED (30/30 tests green, total 95/95 green, verify:integrity exits 0)
 - [ ] Phase 6: Orders + reservations (manual order creation, ATP, atomic reserve, cancel, P6-T01..T20)
 - [ ] Phase 7: Assignment + routing (picker assignment, graph, route planning, missions, P7-T01..T19)
 - [ ] Phase 8: Picking + exceptions (stop confirmation, partial picks, exceptions, resolution, P8-T01..T25)
