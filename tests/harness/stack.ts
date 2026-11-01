@@ -1,6 +1,6 @@
 import net from 'node:net';
 import path from 'node:path';
-import { spawn, ChildProcess } from 'node:child_process';
+import { spawn, spawnSync, ChildProcess } from 'node:child_process';
 import Database from 'better-sqlite3';
 import { createTempDbPaths, TempDbPaths } from './tempDb.js';
 import { applyMigrations } from '../../scripts/migrate.js';
@@ -19,6 +19,7 @@ export interface RunningStack {
   stop: () => Promise<void>;
   kill: (name: 'gateway' | 'engine1' | 'engine2' | 'engine3') => Promise<void>;
   restart: (name: 'gateway' | 'engine1' | 'engine2' | 'engine3') => Promise<void>;
+  restartService: (name: 'gateway' | 'engine1' | 'engine2' | 'engine3') => Promise<void>;
 }
 
 export function getFreePort(): Promise<number> {
@@ -177,7 +178,7 @@ export async function startStack(options: { seed?: boolean } = {}): Promise<Runn
       const cp = processes[name];
       if (cp && !cp.killed) {
         if (isWin && cp.pid) {
-          spawn('taskkill', ['/pid', cp.pid.toString(), '/f', '/t']);
+          spawnSync('taskkill', ['/pid', cp.pid.toString(), '/f', '/t']);
         } else {
           cp.kill('SIGKILL');
         }
@@ -185,6 +186,30 @@ export async function startStack(options: { seed?: boolean } = {}): Promise<Runn
       }
     },
     restart: async (name) => {
+      const cp = processes[name];
+      if (cp && !cp.killed) {
+        if (isWin && cp.pid) {
+          spawnSync('taskkill', ['/pid', cp.pid.toString(), '/f', '/t']);
+        } else {
+          cp.kill('SIGKILL');
+        }
+        processes[name] = null;
+        await new Promise((r) => setTimeout(r, 200));
+      }
+      spawnService(name);
+      await waitForHealth(urls[name]);
+    },
+    restartService: async (name) => {
+      const cp = processes[name];
+      if (cp && !cp.killed) {
+        if (isWin && cp.pid) {
+          spawnSync('taskkill', ['/pid', cp.pid.toString(), '/f', '/t']);
+        } else {
+          cp.kill('SIGKILL');
+        }
+        processes[name] = null;
+        await new Promise((r) => setTimeout(r, 200));
+      }
       spawnService(name);
       await waitForHealth(urls[name]);
     }

@@ -7,7 +7,7 @@ export interface ApiClient {
   post: (
     path: string,
     body?: unknown,
-    options?: { idempotencyKey?: string; headers?: Record<string, string> }
+    options?: { idempotencyKey?: string | null; omitIdempotencyKey?: boolean; headers?: Record<string, string> }
   ) => Promise<{ status: number; body: any; headers: Headers }>;
 }
 
@@ -48,7 +48,11 @@ export function apiClient(baseUrl: string): ApiClient {
       return { status: res.status, body, headers: res.headers };
     },
 
-    async post(path: string, body?: unknown, options: { idempotencyKey?: string; headers?: Record<string, string> } = {}) {
+    async post(
+      path: string,
+      body?: unknown,
+      options: { idempotencyKey?: string | null; omitIdempotencyKey?: boolean; headers?: Record<string, string> } = {}
+    ) {
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
         ...(options.headers || {})
@@ -56,11 +60,14 @@ export function apiClient(baseUrl: string): ApiClient {
       if (authToken) {
         headers['Authorization'] = `Bearer ${authToken}`;
       }
-      if (options.idempotencyKey !== undefined) {
+
+      if (options.omitIdempotencyKey) {
+        // Do not add Idempotency-Key
+      } else if (options.idempotencyKey !== undefined) {
         if (options.idempotencyKey) {
           headers['Idempotency-Key'] = options.idempotencyKey;
         }
-      } else {
+      } else if (!headers['Idempotency-Key'] && !headers['idempotency-key']) {
         headers['Idempotency-Key'] = crypto.randomUUID();
       }
 

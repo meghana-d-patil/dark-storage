@@ -113,3 +113,25 @@
   - `verify:integrity`: I01, I03, I04, I11, I12 PASS; others appropriately SKIP pending future phase tables.
   - `npm run build -w apps/web`: clean build.
 - Phase 2 gate: PASSED.
+
+
+## Phase 3 — Receiving: Execution & Verification
+- Applied migration `migrations/warehouse/004_receiving.sql`:
+  - `receipts` table with `ref`, `supplier`, `reference_no`, `notes`, `received_at`, `received_by`, `status`.
+  - `receipt_lines` table with `line_no`, `sku`, `qty_received`, `qty_put_away`, `movement_ref`.
+- Implemented `services/engine3-inventory/src/domain/receivingRepo.ts`:
+  - Atomic multi-line intake recording with FIFO movement records (`RECEIVE`, `EXTERNAL` -> `STAGING`), audit logs, and outbox event `receipt.created`.
+- Shared schemas created in `packages/shared/src/schemas/receiving.ts`.
+- Routes created and mounted:
+  - Engine 3 routes in `routes/receipts.ts` (`POST /internal/v1/receipts`, `GET /internal/v1/receipts/staged`, `GET /internal/v1/receipts`, `GET /internal/v1/receipts/:ref`, `GET /internal/v1/receipts/lines/:id`).
+  - Gateway routes in `routes/receipts.ts` with RBAC (`MANAGER`, `OPERATOR` for POST; authenticated for reads) and mandatory `Idempotency-Key` header checking.
+- Built React Receiving page (`apps/web/src/pages/ReceivingPage.tsx`):
+  - New Intake tab with type-ahead product picker, duplicate guard, summary strip, idempotency tracking, and real server receipt confirmation banner.
+  - Staged Stock tab with FIFO outstanding lines.
+  - Receipts tab with searchable list and drawer showing lines, movement refs, and audit trail.
+- Verification:
+  - `vitest run tests/phase3/phase3.test.ts`: 13/13 passed in 3.52s.
+  - Full test suite: 49/49 passed in 10.73s.
+  - `verify:integrity`: I01, I03, I04, I05, I11, I12 all PASS.
+  - `npm run build -w apps/web`: clean build.
+- Phase 3 gate: PASSED.

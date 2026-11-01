@@ -4,7 +4,7 @@ Track progress strictly phase-by-phase. Tick items and record real command test 
 
 - [x] Phase 1: Foundation (monorepo, schema 001/002, seed, auth, service skeletons, test harness, P1-T01..T16) - PASSED (16/16 tests green, verify:integrity exits 0)
 - [x] Phase 2: Inventory core (stock model, invariants, ledger, bin management, read APIs, Inventory UI, P2-T01..T20) - PASSED (20/20 tests green, verify:integrity exits 0)
-- [ ] Phase 3: Receiving (multi-line intake, staging, receipts, Receiving UI, P3-T01..T16)
+- [x] Phase 3: Receiving (multi-line intake, staging, receipts, Receiving UI, P3-T01..T16) - PASSED (13/13 tests green, total 49/49 green, verify:integrity exits 0)
 - [ ] Phase 4: Engine 2 allocation (filtering, scoring, explanation, manual selection, P4-T01..T17)
 - [ ] Phase 5: Engine 1 + put-away (scheduler, locks, recovery, put-away, relocation, P5-T01..T30)
 - [ ] Phase 6: Orders + reservations (manual order creation, ATP, atomic reserve, cancel, P6-T01..T20)

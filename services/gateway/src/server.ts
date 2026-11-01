@@ -9,6 +9,7 @@ import { authRouter } from './routes/auth.js';
 import { productsRouter } from './routes/products.js';
 import { inventoryRouter } from './routes/inventory.js';
 import { warehouseRouter } from './routes/warehouse.js';
+import { receiptsRouter } from './routes/receipts.js';
 
 export function createApp(): Express {
   const app = express();
@@ -22,6 +23,7 @@ export function createApp(): Express {
   app.use(productsRouter);
   app.use('/api/inventory', inventoryRouter);
   app.use('/api/warehouse', warehouseRouter);
+  app.use('/api/receipts', receiptsRouter);
 
   // Unknown route handler
   app.use((req, res) => {
