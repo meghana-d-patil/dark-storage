@@ -14,6 +14,8 @@ import { placementRouter } from './routes/placement.js';
 import { putawaysRouter } from './routes/putaways.js';
 import { tasksRouter } from './routes/tasks.js';
 import { ordersRouter } from './routes/orders.js';
+import { missionsRouter } from './routes/missions.js';
+import { usersRouter } from './routes/users.js';
 
 export function createApp(): Express {
   const app = express();
@@ -32,6 +34,8 @@ export function createApp(): Express {
   app.use('/api/putaways', putawaysRouter);
   app.use('/api/tasks', tasksRouter);
   app.use('/api/orders', ordersRouter);
+  app.use('/api/missions', missionsRouter);
+  app.use('/api/users', usersRouter);
 
 
   // Unknown route handler

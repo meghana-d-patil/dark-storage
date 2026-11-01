@@ -6,6 +6,7 @@ import { healthRouter } from './routes/health.js';
 import { internalAuth } from './middleware/internalAuth.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { createPlacementRouter } from './routes/placement.js';
+import { createRoutingRouter } from './routes/routing.js';
 
 export function createApp(db: Database.Database): Express {
   const app = express();
@@ -13,6 +14,7 @@ export function createApp(db: Database.Database): Express {
   app.use(healthRouter);
   app.use(internalAuth);
   app.use('/internal/v1/placement', createPlacementRouter(db));
+  app.use('/internal/v1/routes', createRoutingRouter(db));
   app.use(errorHandler);
 
   return app;

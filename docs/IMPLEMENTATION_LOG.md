@@ -225,3 +225,46 @@
   - `verify:integrity`: exits 0 with all checks PASS or valid SKIP.
   - `npm run build -w apps/web`: clean build (zero TypeScript/Vite errors).
 - Phase 6 gate: PASSED.
+
+## Phase 7 — Assignment & Route Optimization: Execution & Verification
+- Applied migrations:
+  - `migrations/warehouse/007_missions.sql`: created `missions` and `pick_stops` tables with partial unique index `uq_mission_active_order` (`WHERE status IN ('ASSIGNED','IN_PROGRESS')`), stop sequence constraints, foreign keys, and indexes.
+- Implemented Shared Schemas (`packages/shared/src/schemas/missions.ts`):
+  - `assignMissionSchema`: validates `picker_id`.
+  - `reassignMissionSchema`: validates `picker_id`.
+  - `missionQuerySchema`: handles pagination and status/picker filters.
+  - Exported interfaces: `MissionDto`, `PickStopDto`, `MissionProgressDto`.
+- Implemented Engine 2 Route Planning (`services/engine2-optimizer/src/routing/`):
+  - `dijkstra.ts`: Dijkstra distance matrix calculation with deterministic tie-breaking (node ID ascending).
+  - `astar.ts`: A* pathfinding using Euclidean distance heuristic (`h(n) = sqrt(dx^2 + dy^2)`).
+  - `heldKarp.ts`: Exact TSP dynamic programming algorithm for `m <= 10` waypoints with fixed start (`DOCK`) and end (`PACK`).
+  - `twoOpt.ts`: Nearest-neighbour initial tour followed by 2-opt edge-exchange heuristic up to 1000 passes for `m > 10` waypoints.
+  - `planRoute.ts`: Waypoint aggregation by node, reachability check throwing 422 `ROUTE_UNREACHABLE` on isolated nodes, within-node stop ordering by `(shelf_code ASC, level ASC)`, leg computation with A*, and 2 decimal place rounding.
+  - Mounted `POST /internal/v1/routes/plan` in `routes/routing.ts`.
+- Implemented Engine 3 Missions Domain (`services/engine3-inventory/src/domain/missionsRepo.ts`):
+  - `getPickPlan`: Validates order is `RESERVED`, loads `HELD` reservations, and computes SHA-256 `plan_token`.
+  - `assignMission`: Atomic execution in `runTx`. Checks `plan_token` (throws 409 `PLAN_STALE` on concurrency), verifies active `PICKER` role, creates `missions` with route metadata, creates 1:1 `pick_stops` with reservation keys and sequential stop refs (`MIS-0001-S01..`), updates order status to `ASSIGNED`, audits `MISSION_ASSIGNED`, and emits outbox events.
+  - `reassignMission`: Reassigns picker while mission is in `ASSIGNED` status; rejects if started.
+  - `startMission`: Verifies caller is assigned picker (else 403 `NOT_YOUR_MISSION`), transitions mission to `IN_PROGRESS` and order to `PICKING`, audits, and emits events.
+  - `getMission` & `listMissions`: Full DTO loading including picker details, route legs, progress, and stops.
+  - `getActivePickers`: Returns active pickers with their open missions count.
+  - Mounted internal routes in `routes/missions.ts`.
+- Implemented Gateway Orchestration:
+  - `POST /api/orders/:ref/assign`: MANAGER role, fetches pick-plan from Engine 3, requests route plan from Engine 2, assigns mission in Engine 3 with automatic 1-retry on `PLAN_STALE`.
+  - `POST /api/orders/:ref/reassign`: MANAGER role, proxies reassignment.
+  - `POST /api/missions/:ref/start`: PICKER role, proxies mission start.
+  - `GET /api/missions`: Restricts `PICKER` role strictly to own missions; managers can see all.
+  - `GET /api/missions/:ref`: Enforces picker ownership check.
+  - `GET /api/users?role=PICKER`: Returns active pickers with open mission counts.
+- Implemented Web UI:
+  - `OrderDetailPage.tsx`: Added "Assign Picker" button for `RESERVED` orders and "Reassign" button for `ASSIGNED` orders. Modal displays eligible pickers with open missions count. Facts card displays active mission link, route distance, and algorithm.
+  - `OrdersPage.tsx`: Added "Awaiting assignment" status filter for manager workflow.
+  - `PickingPage.tsx` (`/picking`): "My missions" card/table for Pickers; filterable mission monitoring for Managers.
+  - `MissionDetailPage.tsx` (`/picking/:ref`): Route panel with algorithm badge, total distance, textual leg breakdown (`DOCK → XB-A → N-A-01 (20.0)`), stops table in visit order (`seq`), and "Start mission" button for assigned picker.
+  - Navigation: added Picking link in `AppShell.tsx` for `PICKER` and `MANAGER`.
+- Verification:
+  - `vitest run tests/phase7/phase7.test.ts`: 19/19 passed in 7.37s.
+  - Full test suite: 135/135 passed across Phases 1-7 in 36.74s.
+  - `verify:integrity`: exits 0 with all checks PASS or valid SKIP.
+  - `npm run build -w apps/web`: clean build.
+- Phase 7 gate: PASSED.

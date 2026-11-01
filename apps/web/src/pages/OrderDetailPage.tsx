@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '../api/client.js';
 import { useAuthStore } from '../stores/authStore.js';
@@ -19,6 +19,10 @@ export const OrderDetailPage: React.FC = () => {
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
   const [cancelError, setCancelError] = useState('');
+  const [assignModalOpen, setAssignModalOpen] = useState(false);
+  const [isReassign, setIsReassign] = useState(false);
+  const [selectedPickerId, setSelectedPickerId] = useState<number | null>(null);
+  const [assignError, setAssignError] = useState('');
   const [expandedLines, setExpandedLines] = useState<Record<number, boolean>>({});
 
   const { data: order, isLoading, error } = useQuery<OrderDto>({
@@ -26,6 +30,64 @@ export const OrderDetailPage: React.FC = () => {
     queryFn: () => apiFetch(`/api/orders/${ref}`),
     refetchInterval: 5000,
     enabled: !!ref
+  });
+
+  const { data: pickersData } = useQuery<{ pickers?: any[]; users?: any[] }>({
+    queryKey: ['pickers'],
+    queryFn: () => apiFetch('/api/users?role=PICKER'),
+    enabled: isManager
+  });
+  const pickers = pickersData?.pickers || pickersData?.users || [];
+
+  const { data: missionsData } = useQuery<{ missions?: any[] }>({
+    queryKey: ['missions'],
+    queryFn: () => apiFetch('/api/missions'),
+    enabled: !!ref && order?.status !== 'RESERVED' && order?.status !== 'CANCELLED'
+  });
+  const mission = missionsData?.missions?.find((m: any) => m.order_ref === ref);
+
+  const assignMutation = useMutation({
+    mutationFn: (pickerId: number) =>
+      apiFetch(`/api/orders/${ref}/assign`, {
+        method: 'POST',
+        headers: {
+          'Idempotency-Key': `assign-${ref}-${Date.now()}`
+        },
+        body: JSON.stringify({ picker_id: pickerId })
+      }),
+    onSuccess: () => {
+      setAssignModalOpen(false);
+      setAssignError('');
+      setSelectedPickerId(null);
+      queryClient.invalidateQueries({ queryKey: ['order', ref] });
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      queryClient.invalidateQueries({ queryKey: ['missions'] });
+    },
+    onError: (err: any) => {
+      setAssignError(err.message || 'Failed to assign picker');
+    }
+  });
+
+  const reassignMutation = useMutation({
+    mutationFn: (pickerId: number) =>
+      apiFetch(`/api/orders/${ref}/reassign`, {
+        method: 'POST',
+        headers: {
+          'Idempotency-Key': `reassign-${ref}-${Date.now()}`
+        },
+        body: JSON.stringify({ picker_id: pickerId })
+      }),
+    onSuccess: () => {
+      setAssignModalOpen(false);
+      setAssignError('');
+      setSelectedPickerId(null);
+      queryClient.invalidateQueries({ queryKey: ['order', ref] });
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      queryClient.invalidateQueries({ queryKey: ['missions'] });
+    },
+    onError: (err: any) => {
+      setAssignError(err.message || 'Failed to reassign picker');
+    }
   });
 
   const cancelMutation = useMutation({
@@ -92,6 +154,32 @@ export const OrderDetailPage: React.FC = () => {
           </div>
 
           <div style={{ display: 'flex', gap: '0.5rem' }}>
+            {isManager && order.status === 'RESERVED' && (
+              <button
+                className="btn btn-primary"
+                data-testid="assign-picker-btn"
+                onClick={() => {
+                  setIsReassign(false);
+                  setSelectedPickerId(pickers[0]?.id ?? null);
+                  setAssignModalOpen(true);
+                }}
+              >
+                Assign Picker
+              </button>
+            )}
+            {isManager && order.status === 'ASSIGNED' && (
+              <button
+                className="btn btn-secondary"
+                data-testid="reassign-picker-btn"
+                onClick={() => {
+                  setIsReassign(true);
+                  setSelectedPickerId(pickers[0]?.id ?? null);
+                  setAssignModalOpen(true);
+                }}
+              >
+                Reassign
+              </button>
+            )}
             {canCancel && (
               <button
                 className="btn btn-danger"
@@ -144,6 +232,17 @@ export const OrderDetailPage: React.FC = () => {
               : order.assigned_picker || 'Unassigned'}
           </p>
         </div>
+        {mission && (
+          <div>
+            <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>Active Mission</span>
+            <p style={{ margin: '0.25rem 0 0', fontWeight: 500 }}>
+              <Link to={`/picking/${mission.ref}`} style={{ color: 'var(--color-primary)', textDecoration: 'underline' }}>
+                {mission.ref}
+              </Link>{' '}
+              ({mission.route.total_distance.toFixed(1)} u · {mission.route.algorithm})
+            </p>
+          </div>
+        )}
         <div>
           <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>Created At</span>
           <p style={{ margin: '0.25rem 0 0', fontWeight: 500 }}>{new Date(order.created_at).toLocaleString()}</p>
@@ -289,6 +388,83 @@ export const OrderDetailPage: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Assign Picker Modal */}
+      {assignModalOpen && (
+        <div className="modal-backdrop">
+          <div className="modal" style={{ maxWidth: '480px' }}>
+            <h3 style={{ margin: '0 0 1rem' }}>
+              {isReassign ? `Reassign Picker for ${order.ref}` : `Assign Picker for ${order.ref}`}
+            </h3>
+            <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', marginBottom: '1rem' }}>
+              Select an active warehouse picker. Engine 2 will compute the optimal picking route over the warehouse graph.
+            </p>
+
+            {assignError && <p style={{ color: 'var(--color-danger)', fontSize: '0.85rem' }}>{assignError}</p>}
+
+            <div style={{ marginBottom: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 500 }}>Select Picker</label>
+              {pickers.length === 0 ? (
+                <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>No active pickers available.</p>
+              ) : (
+                pickers.map((p: any) => (
+                  <label
+                    key={p.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '0.6rem 0.75rem',
+                      background: selectedPickerId === p.id ? 'var(--color-bg-hover)' : 'rgba(255,255,255,0.02)',
+                      border: '1px solid ' + (selectedPickerId === p.id ? 'var(--color-primary)' : 'rgba(255,255,255,0.1)'),
+                      borderRadius: '6px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <input
+                        type="radio"
+                        name="selectedPicker"
+                        checked={selectedPickerId === p.id}
+                        onChange={() => setSelectedPickerId(p.id)}
+                      />
+                      <span>{p.display_name}</span>
+                    </div>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
+                      {p.open_missions} active mission{p.open_missions === 1 ? '' : 's'}
+                    </span>
+                  </label>
+                ))
+              )}
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+              <button
+                className="btn btn-secondary"
+                onClick={() => setAssignModalOpen(false)}
+                disabled={assignMutation.isPending || reassignMutation.isPending}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn btn-primary"
+                data-testid="confirm-assign-btn"
+                onClick={() => {
+                  if (!selectedPickerId) return;
+                  if (isReassign) {
+                    reassignMutation.mutate(selectedPickerId);
+                  } else {
+                    assignMutation.mutate(selectedPickerId);
+                  }
+                }}
+                disabled={!selectedPickerId || assignMutation.isPending || reassignMutation.isPending}
+              >
+                {assignMutation.isPending || reassignMutation.isPending ? 'Assigning...' : isReassign ? 'Reassign' : 'Assign Mission'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Cancel Modal */}
       {cancelModalOpen && (

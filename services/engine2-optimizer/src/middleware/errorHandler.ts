@@ -9,7 +9,7 @@ export function errorHandler(
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   next: NextFunction
 ): void {
-  const requestId = req.requestId || (req.headers['x-request-id'] as string) || 'unknown';
+  const requestId = (req as any).requestId || (req.headers['x-request-id'] as string) || 'unknown';
 
   if (err instanceof DomainError) {
     res.status(err.httpStatus).json({

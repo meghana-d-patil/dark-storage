@@ -503,7 +503,7 @@ export function getOrder(db: Database.Database, ref: string): OrderDto | null {
 export function listOrders(
   db: Database.Database,
   query: OrderQueryInput
-): { items: OrderDto[]; page: number; page_size: number; total: number } {
+): { orders: OrderDto[]; items: OrderDto[]; page: number; page_size: number; total: number } {
   let whereClause = 'WHERE 1=1';
   const params: any[] = [];
 

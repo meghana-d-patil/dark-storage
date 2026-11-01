@@ -8,7 +8,7 @@ Track progress strictly phase-by-phase. Tick items and record real command test 
 - [x] Phase 4: Engine 2 allocation (filtering, scoring, explanation, manual selection, P4-T01..T17) - PASSED (16/16 tests green, total 65/65 green, verify:integrity exits 0)
 - [x] Phase 5: Engine 1 + put-away (scheduler, locks, recovery, put-away, relocation, P5-T01..T30) - PASSED (30/30 tests green, total 95/95 green, verify:integrity exits 0)
 - [x] Phase 6: Orders + reservations (manual order creation, ATP, atomic reserve, cancel, P6-T01..T20) - PASSED (21/21 tests green, total 116/116 green, verify:integrity exits 0)
-- [ ] Phase 7: Assignment + routing (picker assignment, graph, route planning, missions, P7-T01..T19)
+- [x] Phase 7: Assignment + routing (picker assignment, graph, route planning, missions, P7-T01..T19) - PASSED (19/19 tests green, total 135/135 green, verify:integrity exits 0)
 - [ ] Phase 8: Picking + exceptions (stop confirmation, partial picks, exceptions, resolution, P8-T01..T25)
 - [ ] Phase 9: Packing + completion + dashboard + audit view (P9-T01..T15)
 - [ ] Phase 10: Realtime, recovery, hardening, full E2E, final report (P10 tests, E2E workflow, WS)

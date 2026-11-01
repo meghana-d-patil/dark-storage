@@ -10,3 +10,4 @@ export * from './schemas/placement.js';
 export * from './schemas/putaways.js';
 export * from './schemas/tasks.js';
 export * from './schemas/orders.js';
+export * from './schemas/missions.js';

@@ -17,7 +17,7 @@ export const OrdersPage: React.FC = () => {
 
   const isManager = user?.role === 'MANAGER';
 
-  const { data, isLoading } = useQuery<{ items: OrderDto[]; page: number; page_size: number; total: number }>({
+  const { data, isLoading } = useQuery<{ items?: OrderDto[]; orders?: OrderDto[]; page: number; page_size: number; total: number }>({
     queryKey: ['orders', page, search, status, priority],
     queryFn: () => {
       const params = new URLSearchParams();
@@ -31,7 +31,7 @@ export const OrdersPage: React.FC = () => {
     refetchInterval: 15000
   });
 
-  const orders = data?.items || [];
+  const orders: OrderDto[] = data?.orders || data?.items || [];
   const total = data?.total || 0;
   const totalPages = Math.max(1, Math.ceil(total / 25));
 
@@ -89,7 +89,7 @@ export const OrdersPage: React.FC = () => {
             }}
           >
             <option value="">All Statuses</option>
-            <option value="RESERVED">RESERVED</option>
+            <option value="RESERVED">Awaiting assignment (RESERVED)</option>
             <option value="ASSIGNED">ASSIGNED</option>
             <option value="PICKING">PICKING</option>
             <option value="PICKED">PICKED</option>
@@ -145,8 +145,8 @@ export const OrdersPage: React.FC = () => {
                 </td>
               </tr>
             ) : (
-              orders.map((o) => {
-                const totalUnits = o.lines.reduce((acc, l) => acc + l.qty_ordered, 0);
+              orders.map((o: OrderDto) => {
+                const totalUnits = o.lines.reduce((acc: number, l) => acc + l.qty_ordered, 0);
                 return (
                   <tr
                     key={o.ref}

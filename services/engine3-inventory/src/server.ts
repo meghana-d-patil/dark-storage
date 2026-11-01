@@ -17,6 +17,7 @@ import { createReceiptsRouter } from './routes/receipts.js';
 import { createCommandsRouter } from './routes/commands.js';
 import { createPutawaysRouter } from './routes/putaways.js';
 import { createOrdersRouter } from './routes/orders.js';
+import { createMissionsRouter } from './routes/missions.js';
 
 export function createApp(db: Database.Database): Express {
   const app = express();
@@ -36,6 +37,7 @@ export function createApp(db: Database.Database): Express {
   app.use(createCommandsRouter(db));
   app.use('/internal/v1/putaways', createPutawaysRouter(db));
   app.use(createOrdersRouter(db));
+  app.use(createMissionsRouter(db));
 
   // Error handler
   app.use(errorHandler);
