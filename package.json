@@ -1,0 +1,39 @@
+{
+  "name": "dark-storage-wms",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "services/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -k -p \"[{name}]\" -n \"E3,E2,E1,GW,WEB\" -c \"blue,yellow,magenta,green,cyan\" \"npm run dev -w @dark-storage/engine3-inventory\" \"npm run dev -w @dark-storage/engine2-optimizer\" \"npm run dev -w @dark-storage/engine1-scheduler\" \"npm run dev -w @dark-storage/gateway\" \"npm run dev -w @dark-storage/web\"",
+    "migrate": "tsx scripts/migrate.ts",
+    "seed:base": "tsx scripts/seed-base.ts",
+    "seed:demo": "tsx scripts/seed-demo.ts",
+    "backup": "tsx scripts/backup-db.ts",
+    "db:migrate": "tsx scripts/migrate.ts",
+    "db:seed": "tsx scripts/seed-base.ts",
+    "db:seed:demo": "tsx scripts/seed-demo.ts",
+    "db:backup": "tsx scripts/backup-db.ts",
+    "verify:integrity": "tsx scripts/verify-integrity.ts",
+    "test": "vitest run",
+    "test:e2e": "vitest run --config vitest.e2e.config.ts"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/node": "^22.13.0",
+    "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^13.0.3",
+    "concurrently": "^9.1.2",
+    "cross-env": "^7.0.3",
+    "supertest": "^7.0.0",
+    "@types/supertest": "^6.0.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3",
+    "vitest": "^2.1.8"
+  }
+}

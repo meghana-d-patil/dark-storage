@@ -1,0 +1,61 @@
+import React from 'react';
+import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { useAuthStore } from '../stores/authStore.js';
+
+interface AppShellProps {
+  navLinks?: Array<{ to: string; label: string; testId: string }>;
+}
+
+export const AppShell: React.FC<AppShellProps> = ({ navLinks }) => {
+  const { user, logout } = useAuthStore();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+
+  const links = navLinks || [
+    { to: '/', label: 'Home', testId: 'nav-home' }
+  ];
+
+  return (
+    <div className="app-container">
+      <header className="header">
+        <div className="header-brand">
+          <span>Dark Storage WMS</span>
+        </div>
+        <div className="header-actions">
+          <span className="badge badge-info" data-testid="ws-status">
+            WS Ready
+          </span>
+          {user && (
+            <span className="user-badge" data-testid="header-user">
+              {user.display_name} · {user.role}
+            </span>
+          )}
+          <button className="btn btn-secondary" onClick={handleLogout} data-testid="logout-btn">
+            Logout
+          </button>
+        </div>
+      </header>
+      <div className="main-body">
+        <aside className="sidebar">
+          {links.map((link) => (
+            <NavLink
+              key={link.to}
+              to={link.to}
+              className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
+              data-testid={link.testId}
+            >
+              {link.label}
+            </NavLink>
+          ))}
+        </aside>
+        <main className="content-area">
+          <Outlet />
+        </main>
+      </div>
+    </div>
+  );
+};

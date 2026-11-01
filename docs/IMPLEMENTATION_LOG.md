@@ -1,0 +1,92 @@
+# Implementation Log
+
+## Phase 1 — Foundation: Plan
+### Planned files:
+- `package.json` (root workspaces and scripts)
+- `tsconfig.base.json`
+- `.gitignore`, `.env.example`, `.env`
+- `README.md`
+- `packages/shared/package.json`
+- `packages/shared/tsconfig.json`
+- `packages/shared/src/enums.ts`
+- `packages/shared/src/errors.ts`
+- `packages/shared/src/ids.ts`
+- `packages/shared/src/schemas/common.ts`
+- `packages/shared/src/schemas/auth.ts`
+- `packages/shared/src/schemas/products.ts`
+- `packages/shared/src/index.ts`
+- `migrations/warehouse/001_core.sql`
+- `migrations/warehouse/002_catalog_layout.sql`
+- `scripts/migrate.ts`
+- `scripts/seed-base.ts`
+- `scripts/backup-db.ts`
+- `scripts/verify-integrity.ts`
+- `services/engine3-inventory/package.json`
+- `services/engine3-inventory/tsconfig.json`
+- `services/engine3-inventory/src/config.ts`
+- `services/engine3-inventory/src/db/connection.ts`
+- `services/engine3-inventory/src/db/tx.ts`
+- `services/engine3-inventory/src/domain/ids.ts`
+- `services/engine3-inventory/src/domain/idempotency.ts`
+- `services/engine3-inventory/src/domain/audit.ts`
+- `services/engine3-inventory/src/domain/outbox.ts`
+- `services/engine3-inventory/src/middleware/internalAuth.ts`
+- `services/engine3-inventory/src/middleware/errorHandler.ts`
+- `services/engine3-inventory/src/routes/health.ts`
+- `services/engine3-inventory/src/routes/auth.ts`
+- `services/engine3-inventory/src/routes/products.ts`
+- `services/engine3-inventory/src/routes/integrity.ts`
+- `services/engine3-inventory/src/server.ts`
+- `services/engine2-optimizer/package.json`
+- `services/engine2-optimizer/tsconfig.json`
+- `services/engine2-optimizer/src/config.ts`
+- `services/engine2-optimizer/src/middleware/internalAuth.ts`
+- `services/engine2-optimizer/src/routes/health.ts`
+- `services/engine2-optimizer/src/server.ts`
+- `services/engine1-scheduler/package.json`
+- `services/engine1-scheduler/tsconfig.json`
+- `services/engine1-scheduler/src/config.ts`
+- `services/engine1-scheduler/src/middleware/internalAuth.ts`
+- `services/engine1-scheduler/src/routes/health.ts`
+- `services/engine1-scheduler/src/server.ts`
+- `services/gateway/package.json`
+- `services/gateway/tsconfig.json`
+- `services/gateway/src/config.ts`
+- `services/gateway/src/clients/engine3.ts`
+- `services/gateway/src/middleware/auth.ts`
+- `services/gateway/src/middleware/rbac.ts`
+- `services/gateway/src/middleware/errorHandler.ts`
+- `services/gateway/src/routes/auth.ts`
+- `services/gateway/src/routes/health.ts`
+- `services/gateway/src/routes/products.ts`
+- `services/gateway/src/server.ts`
+- `apps/web/package.json`
+- `apps/web/tsconfig.json`
+- `apps/web/vite.config.ts`
+- `apps/web/index.html`
+- `apps/web/src/theme.css`
+- `apps/web/src/main.tsx`
+- `apps/web/src/App.tsx`
+- `apps/web/src/stores/authStore.ts`
+- `apps/web/src/api/client.ts`
+- `apps/web/src/components/AppShell.tsx`
+- `apps/web/src/pages/LoginPage.tsx`
+- `apps/web/src/pages/HomePage.tsx`
+- `tests/harness/tempDb.ts`
+- `tests/harness/apiClient.ts`
+- `tests/harness/stack.ts`
+- `tests/phase1/phase1.test.ts`
+- `vitest.config.ts`
+
+
+## Phase 1 Execution & Verification
+- All planned files implemented.
+- Schema migrations applied forward-only with SHA-256 checksum checks.
+- Deterministic base seeding loaded 5 users, 24 products, 48 shelves, 192 bins, 34 navigation nodes, and 36 navigation edges.
+- Error handling standardized with DomainError error envelopes and trigger matching.
+- Multi-process stack test harness verified spawning Gateway, Engine 1, Engine 2, and Engine 3 with health checks and dynamic port allocation.
+- Tests execution:
+  - `vitest run tests/phase1/phase1.test.ts`: 16/16 passed in 2.87s.
+  - `verify:integrity`: 13 checks evaluated (11 SKIP on unmigrated phase tables, 2 PASS on foreign keys and SQLite integrity).
+  - Web UI: `npm run build -w apps/web` completed with zero TypeScript or Vite errors.
+- Phase 1 gate: PASSED.

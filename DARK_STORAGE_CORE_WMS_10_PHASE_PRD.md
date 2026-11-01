@@ -1831,5 +1831,253 @@ Packing performs **no stock quantity change** (stock left the bins at pick time)
 - [ ] Browser: `staff1` packs a full order → `COMPLETED`; a partial order is packable only by `manager1` with the checkbox.
 - [ ] Dashboard figures match Inventory and Orders pages.
 - [ ] P9 tests + all earlier tests green; `verify:integrity` exits 0; log + checklist updated; committed.
+---
 
+# PHASE 10 — REALTIME (WEBSOCKET + OUTBOX REPLAY), HARDENING, FULL E2E & FINAL REPORT
+
+**Objective:** stream committed warehouse events in real time from Engine 3's transactional outbox through Gateway WebSockets to the browser (with gap-free replay on reconnect), prove system resilience under concurrency and process crashes, run the complete end-to-end warehouse lifecycle, and generate the final verification report[cite: 1].
+**Prerequisites:** Phase 9 gate passed[cite: 1].
+
+## 10.1 Transactional Outbox Feed & WebSocket Architecture
+
+Events are **never** emitted before a database transaction commits[cite: 1]. In Phases 1–9, Engine 3 wrote rows into `outbox_events(seq, event_type, entity_type, entity_id, data_json, created_at)` inside `runTx`[cite: 1]. Phase 10 connects that table to the browser[cite: 1].
+
+### 10.1.1 Engine 3 internal outbox endpoint
+- `GET /internal/v1/outbox?after_seq=0&limit=100`
+  - Queries `SELECT seq, event_type, entity_type, entity_id, data_json, created_at FROM outbox_events WHERE seq > @after_seq ORDER BY seq ASC LIMIT @limit`.
+  - Also returns `latest_seq`: `SELECT COALESCE(MAX(seq), 0) FROM outbox_events`.
+  - Response shape:
+    ```json
+    {
+      "latest_seq": 42,
+      "events": [
+        {
+          "seq": 41,
+          "event_type": "inventory.changed",
+          "entity_type": "BIN",
+          "entity_id": "A-01-L-4",
+          "data": { "bins": ["A-01-L-4"] },
+          "created_at": "2026-11-01T10:15:00.000Z"
+        }
+      ]
+    }
+    ```
+
+### 10.1.2 Gateway Outbox Poller & WebSocket Server (`services/gateway/src/ws/hub.ts`)
+- Attach a `ws.WebSocketServer` to the Gateway HTTP server at path `/ws`[cite: 1].
+- **Authentication:** On connection upgrade or initial connect, read `?token=<jwt>&since=<seq>` from the query string[cite: 1]. Verify the JWT using the same secret and logic as HTTP `auth` middleware[cite: 1]. If invalid or expired → send close frame `4401` (`"UNAUTHENTICATED"`) and terminate the socket immediately.
+- **Initial handshake & replay:**
+  1. Parse `since = Number(query.since ?? 0)`.
+  2. Immediately send `{ "type": "connected", "latest_seq": currentGatewaySeq }`.
+  3. If `since > 0` and `since < currentGatewaySeq`: fetch missed events from Engine 3 (`GET /internal/v1/outbox?after_seq=${since}&limit=500`).
+     - If more than 500 events were missed (or if `since > currentGatewaySeq`, e.g. DB was recreated in a test), send `{ "type": "resync_required", "latest_seq": currentGatewaySeq }` so the client invalidates all React Query caches at once.
+     - Otherwise, send each missed event in `seq` order to that client with `"replay": true`.
+- **Background poller loop (in Gateway):**
+  - Every `250 ms`, Gateway polls Engine 3 `GET /internal/v1/outbox?after_seq=${lastPolledSeq}&limit=100`.
+  - For each new event returned, update `lastPolledSeq = event.seq` and broadcast to all connected authenticated clients:
+    ```json
+    {
+      "type": "event",
+      "seq": 42,
+      "event_type": "order.status_changed",
+      "entity_type": "ORDER",
+      "entity_id": "ORD-0001",
+      "data": { "ref": "ORD-0001", "status": "PICKED" },
+      "created_at": "2026-11-01T10:15:00.000Z",
+      "replay": false
+    }
+    ```
+  - **Role filtering:** Do not leak restricted data. Events are lightweight invalidation signals (refs and statuses), which all authenticated roles may receive; the client then refetches via RBAC-protected REST endpoints.
+  - **Heartbeat:** Ping clients every `20 s`; terminate unresponsive sockets after `10 s`.
+  - If Engine 3 is temporarily unreachable during polling, log a warning, keep existing WS connections open, and retry on the next tick.
+
+### 10.1.3 Event catalog → React Query cache invalidation (`apps/web/src/hooks/useRealtime.ts`)
+Maintain `lastSeq` and `connected: boolean` in `realtimeStore` (Zustand)[cite: 1]. Connect to `ws://<host>/ws?token=${token}&since=${lastSeq}`[cite: 1]. On close/error, reconnect with exponential backoff (`500 ms → 1 s → 2 s → max 5 s`), always passing the latest `lastSeq`.
+
+When a message arrives:
+- Update `lastSeq = msg.seq` (if `msg.seq > lastSeq`).
+- If `msg.type === 'resync_required'`, call `queryClient.invalidateQueries()` (all queries).
+- Otherwise invalidate query keys according to `msg.event_type`:
+
+| `event_type` | React Query keys to invalidate |
+|---|---|
+| `receipt.created` | `['receipts']`, `['staged']`, `['inventory']`, `['dashboard']` |
+| `putaway.completed` | `['putaways']`, `['receipts']`, `['staged']`, `['inventory']`, `['warehouse']`, `['dashboard']` |
+| `inventory.changed` | `['inventory']`, `['warehouse']`, `['dashboard']` |
+| `bin.status_changed` | `['inventory']`, `['warehouse']`, `['dashboard']` |
+| `order.created`, `order.status_changed`, `order.completed` | `['orders']`, `['packing']`, `['dashboard']` |
+| `reservation.changed` | `['orders']`, `['inventory']`, `['warehouse']`, `['dashboard']` |
+| `mission.assigned`, `mission.started`, `mission.completed` | `['missions']`, `['orders']`, `['packing']`, `['dashboard']` |
+| `pick.confirmed` | `['missions']`, `['orders']`, `['inventory']`, `['warehouse']`, `['packing']`, `['dashboard']` |
+| `exception.opened`, `exception.resolved` | `['exceptions']`, `['missions']`, `['orders']`, `['inventory']`, `['packing']`, `['dashboard']` |
+
+Display a live indicator in `AppShell` header (`data-testid="ws-status"`): green `"Live"` when connected, amber `"Reconnecting…"` when disconnected.
+
+## 10.2 Hardening & Operational Polish
+1. **Idempotency key purge at Engine 3 startup:** `DELETE FROM idempotency_keys WHERE created_at < datetime('now', '-7 days')`[cite: 1].
+2. **Graceful shutdown:** Every service (`gateway`, `engine1`, `engine2`, `engine3`) listens for `SIGINT` and `SIGTERM`, stops accepting new HTTP/WS requests, finishes in-flight requests, closes SQLite connections cleanly, and exits `0`.
+3. **API documentation generator (`docs/API.md`):** Create or generate a concise reference of all public `/api/*` endpoints, required roles, request/response schemas, and WebSocket event shapes[cite: 1].
+4. **Full RBAC audit:** Verify that every route in Gateway has explicit `rbac(...)` middleware matching §6.5 and §6.9[cite: 1].
+
+## 10.3 End-to-End & Resilience Test Suite (`tests/e2e/`)
+All E2E tests run against a real multi-process stack spawned via `startStack()` on temporary databases[cite: 1].
+
+| ID | Test | Expected |
+|---|---|---|
+| P10-T01 | **WS auth:** connect without token / with bad token / with valid token | Close code `4401` / `4401` / receives `{type:"connected"}` |
+| P10-T02 | **WS live push:** connect WS, create a receipt via REST | WS receives `receipt.created` within 1 s with matching `ref` and `seq >= 1` |
+| P10-T03 | **WS gap-free replay:** connect WS, record `seq1`, disconnect WS; perform put-away + order creation; reconnect with `?since=seq1` | Client immediately receives missed events (`putaway.completed`, `inventory.changed`, `order.created`, `reservation.changed`) with `replay: true` in strict `seq` order |
+| P10-T04 | **Full Happy-Path Golden Lifecycle (API E2E):**<br>1. `operator1` receives `RCV-0001` (50 × SKU001, 30 × SKU002)<br>2. `operator1` asks Engine 2 for placement recommendation and puts away both lines (`PUT-0001`, `PUT-0002`)<br>3. `manager1` creates `ORD-0001` (10 × SKU001, 5 × SKU002)<br>4. `manager1` assigns `picker1` (`MIS-0001` created with Held-Karp route)<br>5. `picker1` starts `MIS-0001` and confirms both stops with valid bin & SKU scans<br>6. `staff1` views packing queue and packs `ORD-0001` (`PCK-0001`) | Order ends `COMPLETED` (`FULL`); bin stock is 40 and 25, reserved is 0; movements table has 2 `RECEIVE`, 2 `PUTAWAY`, 2 `PICK`; `verify:integrity` passes all 13 checks (`I01`–`I13`)[cite: 1] |
+| P10-T05 | **Full Exception & Partial-Pack Lifecycle (API E2E):**<br>1. Create order for 10 × SKU001 (spread or single bin)<br>2. Assign & start mission<br>3. Picker confirms short pick (6 of 10) with `SHORT_PICK` → `EXC-0001` opened, bin flagged `recount_required=1`<br>4. Manager resolves `EXC-0001` with `ACCEPT_SHORT` and `recount: { counted_qty: 0 }`<br>5. Mission auto-completes, order becomes `PICKED`<br>6. `staff1` attempts to pack → `403 PARTIAL_PACK_FORBIDDEN`<br>7. `manager1` packs with `accept_partial: true` | Order ends `COMPLETED` (`PARTIAL`), `total_ordered=10`, `total_picked=6`; bin `qty=0`, `recount_required=0`; `verify:integrity` passes all 13 checks[cite: 1] |
+| P10-T06 | **Exception Reallocate Lifecycle (API E2E):**<br>1. Stock SKU002 in two bins (`B-01-L-1`: 10, `B-02-L-1`: 10)<br>2. Create order for 8 units (reserved in `B-01-L-1`)<br>3. Picker reports `BIN_EMPTY` on stop 1<br>4. Manager resolves with `REALLOCATE` and `recount: { counted_qty: 0 }` | Old reservation released, `B-01-L-1` recounted to 0, new reservation & stop `-S02` created at `B-02-L-1`, mission rerouted; picker confirms `-S02`; `staff1` packs (`FULL`); `verify:integrity` passes all 13 checks[cite: 1] |
+| P10-T07 | **High-concurrency contention stress test:**<br>Seed 100 units of SKU001 across 2 bins. Fire in parallel: 8 order creations (15 units each), 2 put-aways (20 units each), and 1 relocation | Zero deadlocks, zero 500 errors, zero SQLite busy errors; exact conservation of stock; `verify:integrity` passes `I01`–`I13`[cite: 1] |
+| P10-T08 | **Crash & restart resilience:**<br>Mid-workflow (1 order `RESERVED`, 1 mission `IN_PROGRESS` with 1 stop picked), kill and restart Engine 1, Engine 2, Engine 3, and Gateway | All state preserved; mission finishes remaining stop and packs cleanly; `verify:integrity` passes `I01`–`I13`[cite: 1] |
+| P10-T09 | **Playwright Browser Smoke E2E (`tests/e2e/browser.spec.ts`):**<br>Drive the real Chromium browser through Login (`operator1`) → Receiving intake → Allocate & Put-away → Logout → Login (`manager1`) → Create Order → Assign Picker → Logout → Login (`picker1`) → Start Mission & Confirm Pick → Logout → Login (`staff1`) → Confirm Packing → verify `COMPLETED` badge | Complete UI workflow succeeds with zero console/page errors and real database persistence[cite: 1] |
+
+> **Playwright fallback rule:** If Chromium binary installation is blocked by a restricted network/sandbox environment, log the exact error in `docs/BLOCKERS.md` and execute the identical step-by-step UI state & DOM flow using `@testing-library/react` + `jsdom` against the live backend stack (`startStack()`), verifying every `data-testid` interaction end-to-end[cite: 1].
+
+## 10.4 Final Report Format (`docs/IMPLEMENTATION_CHECKLIST.md` & terminal output)
+At the end of Phase 10, run the full test suite (`npm run test` and `npm run test:e2e`) and `npm run verify:integrity`, then write a final summary section in `docs/IMPLEMENTATION_CHECKLIST.md` structured into these exact four categories[cite: 1]:
+1. **IMPLEMENTED AND TESTED** — every phase, endpoint, UI page, and invariant check verified with real test command output[cite: 1].
+2. **IMPLEMENTED BUT NOT FULLY TESTED** — any feature built where a specific test had to be adapted (must explain why)[cite: 1].
+3. **NOT IMPLEMENTED** — must be empty (`None`) for all Phase 1–10 in-scope items[cite: 1].
+4. **BLOCKED BY EXTERNAL DEPENDENCY** — any environment/OS blocker encountered (or `None`)[cite: 1].
+
+## 10.5 Phase 10 acceptance gate
+- [ ] All unit, integration, and E2E tests across Phases 1–10 pass (`npm run test` & `npm run test:e2e`)[cite: 1].
+- [ ] `npm run verify:integrity` runs all 13 checks (`I01`–`I13`) with 0 `FAIL` and 0 `SKIP`[cite: 1].
+- [ ] Live WebSocket updates work in the browser without manual page refresh[cite: 1].
+- [ ] `docs/IMPLEMENTATION_CHECKLIST.md`, `docs/IMPLEMENTATION_LOG.md`, and `docs/API.md` are complete and committed[cite: 1].
+
+---
+
+# APPENDIX A — DETERMINISTIC NAVIGATION GRAPH VERIFICATION
+
+To guarantee that Phase 1 (`P1-T03`, `P1-T05`) and Phase 4 (`P4-T01`) pass on the first run, `scripts/seed-base.ts` must generate the exact 34 nodes and 36 undirected edges below[cite: 1]:
+
+### A.1 Nodes (34 total)
+- `DOCK`: `(0, 0)`, kind `'DOCK'`[cite: 1]
+- `PACK`: `(80, 0)`, kind `'PACK'`[cite: 1]
+- Bottom cross-aisle (`kind = 'CROSS'`)[cite: 1]:
+  - `XB-A`: `(10, 0)` · `XB-B`: `(30, 0)` · `XB-C`: `(50, 0)` · `XB-D`: `(70, 0)`[cite: 1]
+- Top cross-aisle (`kind = 'CROSS'`)[cite: 1]:
+  - `XT-A`: `(10, 50)` · `XT-B`: `(30, 50)` · `XT-C`: `(50, 50)` · `XT-D`: `(70, 50)`[cite: 1]
+- Aisle bay nodes (`kind = 'AISLE'`, 4 aisles × 6 bays = 24 nodes)[cite: 1]:
+  - For `aisle` in `['A','B','C','D']` with `x` in `[10, 30, 50, 70]`[cite: 1]:
+    - For `bay` in `1..6`[cite: 1]:
+      - Node ID: `N-${aisle}-0${bay}` (e.g. `N-A-01` .. `N-D-06`)[cite: 1]
+      - Coordinates: `x = aisle_x`, `y = 10 + (bay - 1) * 6` (so `y` ∈ `{10, 16, 22, 28, 34, 40}`)[cite: 1]
+
+### A.2 Undirected Edges (36 total, stored once in `nav_edges` with `distance = round(hypot(dx,dy), 2)`)
+1. Bottom spine (5 edges)[cite: 1]:
+   - `DOCK`–`XB-A` (`10`) · `XB-A`–`XB-B` (`20`) · `XB-B`–`XB-C` (`20`) · `XB-C`–`XB-D` (`20`) · `XB-D`–`PACK` (`10`)[cite: 1]
+2. Top spine (3 edges)[cite: 1]:
+   - `XT-A`–`XT-B` (`20`) · `XT-B`–`XT-C` (`20`) · `XT-C`–`XT-D` (`20`)[cite: 1]
+3. Per aisle `a` ∈ `{A, B, C, D}` (7 edges × 4 aisles = 28 edges)[cite: 1]:
+   - Bottom entry: `XB-${a}`–`N-${a}-01` (`10`)[cite: 1]
+   - Bay hops: `N-${a}-01`–`N-${a}-02` (`6`), `02`–`03` (`6`), `03`–`04` (`6`), `04`–`05` (`6`), `05`–`06` (`6`)[cite: 1]
+   - Top exit: `N-${a}-06`–`XT-${a}` (`10`)[cite: 1]
+
+**Shortest-path checkpoints (`P4-T01`)[cite: 1]:**
+- `dist(DOCK, N-A-01)` = `10 (DOCK→XB-A) + 10 (XB-A→N-A-01)` = **`20`**[cite: 1]
+- `dist(DOCK, N-A-06)` = `20 + 5 × 6` = **`50`**[cite: 1]
+- `dist(DOCK, N-D-01)` = `10 + 20 + 20 + 20 + 10` = **`80`**[cite: 1]
+- `dist(DOCK, PACK)` = `10 + 20 + 20 + 20 + 10` = **`80`**[cite: 1]
+- Largest shelf distance from `DOCK` (`maxDist` in §4.3) = `dist(DOCK, N-D-06)` = `70 + 10 + 30` = **`110`**.
+
+---
+
+# APPENDIX B — MANDATORY `data-testid` CATALOG
+
+Use these exact `data-testid` attributes on interactive and status elements so component and E2E tests are 100% deterministic[cite: 1]:
+
+| Page / Component | Element | `data-testid` |
+|---|---|---|
+| **AppShell** | Current user badge | `header-user` |
+| | WebSocket status badge | `ws-status` |
+| | Logout button | `logout-btn` |
+| | Side navigation links | `nav-home`, `nav-receiving`, `nav-inventory`, `nav-warehouse`, `nav-orders`, `nav-picking`, `nav-packing`, `nav-exceptions`, `nav-tasks`, `nav-admin` |
+| **Login (`/login`)** | Username input | `login-username` |
+| | Password input | `login-password` |
+| | Submit button | `login-submit` |
+| | Error banner | `login-error` |
+| **Receiving (`/receiving`)** | Tab buttons | `tab-new-intake`, `tab-staged-stock`, `tab-receipts`, `tab-putaways` |
+| | Supplier / Ref / Notes inputs | `intake-supplier`, `intake-reference`, `intake-notes` |
+| | Add line button | `intake-add-line` |
+| | Line row `i` (0-based) | `intake-line-sku-${i}`, `intake-line-qty-${i}`, `intake-line-remove-${i}` |
+| | Confirm intake button | `intake-submit` |
+| | Created receipt banner | `intake-success-banner` |
+| | Staged row allocate button | `staged-allocate-${line_id}` |
+| **Allocation Panel** | Quantity input | `alloc-qty` |
+| | Recommended bin card & select | `alloc-recommended-card`, `alloc-select-recommended` |
+| | Show all bins toggle | `alloc-show-all-toggle` |
+| | Candidate bin select button | `alloc-select-bin-${bin_code}` |
+| | Validation status badge | `alloc-validation-status` |
+| | Confirm put-away button | `alloc-confirm-btn` |
+| **Inventory (`/inventory`)** | Tab buttons | `inv-tab-summary`, `inv-tab-bins`, `inv-tab-ledger` |
+| | Search input | `inv-search` |
+| | Bin row | `inv-bin-row-${bin_code}` |
+| | Bin status change button | `bin-status-btn` |
+| | Bin recount button & submit | `bin-recount-btn`, `bin-recount-submit` |
+| | Bin relocate button & submit | `bin-relocate-btn`, `bin-relocate-submit` |
+| **Warehouse (`/warehouse`)** | Locate search input | `warehouse-locate-input` |
+| | Shelf card | `shelf-card-${shelf_code}` |
+| | Bin cell | `bin-cell-${bin_code}` |
+| **Orders (`/orders`)** | New order button | `orders-new-btn` |
+| | Order type / priority / customer | `order-type`, `order-priority`, `order-customer` |
+| | Line product search & qty | `order-line-sku`, `order-line-qty`, `order-add-line` |
+| | Submit order button | `order-submit` |
+| | Shortage table | `order-shortage-table` |
+| | Cancel order button & confirm | `order-cancel-btn`, `order-cancel-confirm` |
+| | Assign picker button & confirm | `order-assign-btn`, `order-assign-confirm` |
+| **Picking (`/picking`)** | Mission card / row | `mission-row-${mission_ref}` |
+| | Start mission button | `mission-start-btn` |
+| | Current stop card | `current-stop-card` |
+| | Scan bin / Scan SKU / Picked qty | `pick-scan-bin`, `pick-scan-sku`, `pick-qty` |
+| | Exception type & notes (short pick) | `pick-exc-type`, `pick-exc-notes` |
+| | Confirm pick button | `pick-confirm-btn` |
+| | Report problem button & submit | `pick-report-btn`, `pick-report-submit` |
+| **Exceptions (`/exceptions`)**| Exception row | `exc-row-${exc_ref}` |
+| | Recount input in resolve modal | `exc-resolve-recount` |
+| | Reallocate / Accept short buttons | `exc-resolve-reallocate`, `exc-resolve-accept-short` |
+| **Packing (`/packing`)** | Queue item | `pack-queue-${order_ref}` |
+| | Accept partial checkbox (Manager) | `pack-accept-partial-checkbox` |
+| | Confirm packing button | `pack-confirm-btn` |
+| **Admin (`/admin`)** | Run integrity checks button | `integrity-run-btn` |
+| | Integrity overall status | `integrity-status` |
+
+---
+
+# APPENDIX C — GLOBAL TECHNICAL ERRATA & IMPLEMENTATION SAFEGUARDS (OVERRIDES)
+
+**CRITICAL FOR THE BUILDING AGENT:** Read this appendix alongside **§1–§8** before starting Phase 1. Where any detail below clarifies or refines an earlier section, **follow the rules in this appendix**.
+
+### C.1 Transaction Nesting Rule (`runIdempotent` + `runTx` — Clarifies §1.4 & §6.6)
+- `runIdempotent` MUST use `runTx(db, () => { ... })` as its single transaction boundary and pass `db` directly into `handler(db)`[cite: 1].
+- **Never** execute a raw `db.exec('BEGIN IMMEDIATE')` inside `runIdempotent` followed by calling `runTx` inside `handler`, or SQLite will throw `SqliteError: cannot start a transaction within a transaction`.
+- When both `runIdempotent` and inner domain helpers use `better-sqlite3`'s `db.transaction(fn)` wrapper, `better-sqlite3` automatically converts nested calls into SQLite `SAVEPOINT`s. Only call `.immediate()` when `!db.inTransaction`:
+  ```ts
+  export function runTx<T>(db: Database.Database, fn: () => T): T {
+    const trx = db.transaction(fn);
+    return db.inTransaction ? trx() : trx.immediate();
+  }
+  ```
+
+### C.2 Sequential Integration Test Execution (`vitest.config.ts` — Clarifies §1.5 & §3)
+- Because `startStack()` spawns 4 child processes (`tsx`) per test suite[cite: 1], running test files in parallel across worker threads will cause CPU contention and port/timeout flakiness.
+- Configure `vitest.config.ts` at the root with:
+  ```ts
+  export default defineConfig({
+    test: {
+      fileParallelism: false,
+      testTimeout: 30000,
+      hookTimeout: 30000,
+    },
+  });
+  ```
+
+### C.3 Authorized Internal Mirror Routes (`Engine 1` & `Engine 3` — Clarifies §5.2, §5.4 & §9.3)
+- Whenever a Gateway `READ`, `PROXY`, or `ORCH` flow requires reading or mutating state on Engine 3 or Engine 1[cite: 1], you are explicitly authorized to expose the matching `/internal/v1/*` route on that engine without logging a deviation, including:
+  - Engine 3: `GET /internal/v1/receipts/lines/:id` (Phase 4)[cite: 1], `GET /internal/v1/orders/:ref/pick-plan` (Phase 7)[cite: 1], `POST /internal/v1/orders/:ref/assign` (Phase 7)[cite: 1], `POST /internal/v1/orders/:ref/reassign` (Phase 7)[cite: 1], `GET /internal/v1/pick-stops/:ref` (Phase 8)[cite: 1], `GET /internal/v1/missions/:ref/reroute-input` (Phase 8)[cite: 1], `POST /internal/v1/missions/:ref/reroute` (Phase 8)[cite: 1], `GET /internal/v1/integrity` (Phase 9)[cite: 1], `GET /internal/v1/outbox` (Phase 10).
+  - Engine 1: `GET /internal/v1/tasks`, `GET /internal/v1/tasks/:id`, `GET /internal/v1/locks`, `GET /internal/v1/queue`, `GET /internal/v1/stats` (for dashboard).
 ---
