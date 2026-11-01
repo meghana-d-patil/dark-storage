@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '../api/client.js';
 import { ProductLabel } from '../components/ProductLabel.js';
 import { StatusBadge } from '../components/StatusBadge.js';
+import { AllocationModal } from '../components/AllocationModal.js';
 
 interface ProductItem {
   sku: string;
@@ -98,6 +99,7 @@ export const ReceivingPage: React.FC = () => {
   // Receipts tab state
   const [receiptsSearch, setReceiptsSearch] = useState('');
   const [selectedReceiptRef, setSelectedReceiptRef] = useState<string | null>(null);
+  const [selectedLineForAlloc, setSelectedLineForAlloc] = useState<StagedLineItem | null>(null);
 
   // Queries
   const { data: searchProducts } = useQuery<{ items: ProductItem[] }>({
@@ -520,13 +522,14 @@ export const ReceivingPage: React.FC = () => {
                 <th>Put Away</th>
                 <th>Staged</th>
                 <th>Received At</th>
+                <th>Action</th>
               </tr>
             </thead>
             <tbody>
               {stagedLoading ? (
-                <tr><td colSpan={8}>Loading staged stock...</td></tr>
+                <tr><td colSpan={9}>Loading staged stock...</td></tr>
               ) : !stagedLines || stagedLines.length === 0 ? (
-                <tr><td colSpan={8}>No stock currently staged.</td></tr>
+                <tr><td colSpan={9}>No stock currently staged.</td></tr>
               ) : (
                 stagedLines.map((row) => (
                   <tr key={row.line_id}>
@@ -544,12 +547,29 @@ export const ReceivingPage: React.FC = () => {
                     <td>{row.qty_put_away}</td>
                     <td><strong>{row.qty_staged}</strong></td>
                     <td>{new Date(row.received_at).toLocaleString()}</td>
+                    <td>
+                      <button
+                        className="btn btn-secondary"
+                        style={{ padding: '2px 8px', fontSize: 12 }}
+                        onClick={() => setSelectedLineForAlloc(row)}
+                        data-testid={`alloc-btn-${row.line_id}`}
+                      >
+                        Allocate
+                      </button>
+                    </td>
                   </tr>
                 ))
               )}
             </tbody>
           </table>
         </div>
+      )}
+
+      {selectedLineForAlloc && (
+        <AllocationModal
+          receiptLine={selectedLineForAlloc}
+          onClose={() => setSelectedLineForAlloc(null)}
+        />
       )}
 
       {/* Tab 3: Receipts List */}

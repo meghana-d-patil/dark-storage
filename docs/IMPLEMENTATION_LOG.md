@@ -135,3 +135,27 @@
   - `verify:integrity`: I01, I03, I04, I05, I11, I12 all PASS.
   - `npm run build -w apps/web`: clean build.
 - Phase 3 gate: PASSED.
+
+
+## Phase 4 — Engine 2 Smart Allocation: Execution & Verification
+- Implemented Engine 2 modules:
+  - Graph loader: `graph/loadGraph.ts` with 60-second caching.
+  - Dijkstra shortest path: `graph/dijkstra.ts`. Verified: `dist(DOCK, N-A-01)=20`, `dist(DOCK, N-A-06)=50`, `dist(DOCK, N-D-01)=80`, `dist(DOCK, PACK)=80`.
+  - Database snapshot query: `placement/snapshot.ts` (read-only, no mutations).
+  - Candidate filter: `placement/filter.ts` evaluating 8 rejection reasons in exact PRD order.
+  - Candidate scoring: `placement/score.ts` with 5 factors (distance, consolidation, utilization, affinity, velocity) and dynamic weight renormalization. Verified Golden Unit Test score = `76.47`.
+  - Recommendation orchestrator: `placement/recommend.ts` (deterministic ranking, split plan, factor contribution explanations).
+- Engine 2 server & routes:
+  - `routes/placement.ts`: `POST /internal/v1/placement/recommend` and `POST /internal/v1/placement/validate`.
+- Gateway orchestration:
+  - `clients/engine2.ts`.
+  - `routes/placement.ts`: `POST /api/placement/recommend` (loads line from Engine 3, validates staged quantity, calls Engine 2, merges response) and `POST /api/placement/validate`.
+- Web Frontend:
+  - `components/AllocationModal.tsx`: Recommended bin card, factor breakdown bars, alternatives list, split plan notification, full 192-bin manual selection toggle with disabled invalid rows, and live validation.
+  - Wired into `ReceivingPage.tsx` under Staged Stock tab with "Allocate" button.
+- Verification:
+  - `vitest run tests/phase4/phase4.test.ts`: 16/16 passed in 3.55s.
+  - Full test suite: 65/65 passed in 13.32s.
+  - `verify:integrity`: exits 0 with all applicable checks PASS.
+  - `npm run build -w apps/web`: clean build.
+- Phase 4 gate: PASSED.

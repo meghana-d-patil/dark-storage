@@ -6,3 +6,4 @@ export * from './schemas/auth.js';
 export * from './schemas/products.js';
 export * from './schemas/inventory.js';
 export * from './schemas/receiving.js';
+export * from './schemas/placement.js';
