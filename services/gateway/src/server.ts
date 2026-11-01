@@ -7,6 +7,8 @@ import { errorHandler } from './middleware/errorHandler.js';
 import { healthRouter } from './routes/health.js';
 import { authRouter } from './routes/auth.js';
 import { productsRouter } from './routes/products.js';
+import { inventoryRouter } from './routes/inventory.js';
+import { warehouseRouter } from './routes/warehouse.js';
 
 export function createApp(): Express {
   const app = express();
@@ -18,6 +20,8 @@ export function createApp(): Express {
   app.use(healthRouter);
   app.use(authRouter);
   app.use(productsRouter);
+  app.use('/api/inventory', inventoryRouter);
+  app.use('/api/warehouse', warehouseRouter);
 
   // Unknown route handler
   app.use((req, res) => {

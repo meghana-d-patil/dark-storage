@@ -123,6 +123,10 @@ export async function startStack(options: { seed?: boolean } = {}): Promise<Runn
       stdio: 'pipe'
     });
 
+    cp.stderr?.on('data', (data) => {
+      process.stderr.write(`[${name} stderr] ${data}`);
+    });
+
     processes[name] = cp;
   }
 

@@ -16,7 +16,9 @@ export const AppShell: React.FC<AppShellProps> = ({ navLinks }) => {
   };
 
   const links = navLinks || [
-    { to: '/', label: 'Home', testId: 'nav-home' }
+    { to: '/', label: 'Home', testId: 'nav-home' },
+    { to: '/inventory', label: 'Inventory', testId: 'nav-inventory' },
+    { to: '/warehouse', label: 'Warehouse', testId: 'nav-warehouse' }
   ];
 
   return (

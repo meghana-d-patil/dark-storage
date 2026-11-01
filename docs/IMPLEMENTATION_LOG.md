@@ -90,3 +90,26 @@
   - `verify:integrity`: 13 checks evaluated (11 SKIP on unmigrated phase tables, 2 PASS on foreign keys and SQLite integrity).
   - Web UI: `npm run build -w apps/web` completed with zero TypeScript or Vite errors.
 - Phase 1 gate: PASSED.
+
+
+## Phase 2 — Inventory Core: Execution & Verification
+- Applied migration `migrations/warehouse/003_inventory_ledger.sql`:
+  - `inventory` table with constraints (`qty >= 0`, `reserved_qty >= 0`, `reserved_qty <= qty`, `(qty = 0 AND sku IS NULL) OR (qty > 0 AND sku IS NOT NULL)`).
+  - Triggers: `inventory_capacity_upd`, `inventory_capacity_ins`, `inventory_sku_mix`, `inventory_receivable`, `inventory_storage_class`.
+  - `stock_movements` append-only table with `mov_no_update`, `mov_no_delete` triggers.
+  - `v_available_stock` view defining sellable stock.
+- Implemented `services/engine3-inventory/src/domain/inventoryRepo.ts`:
+  - `stockIn`, `stockOut`, `reserve`, `release`, `recordMovement`, `applyRecount`.
+- Implemented routes and schemas:
+  - Shared schemas in `packages/shared/src/schemas/inventory.ts`.
+  - Engine 3 routes in `routes/inventory.ts` and `routes/warehouse.ts`.
+  - Gateway routes in `routes/inventory.ts` and `routes/warehouse.ts` with RBAC (MANAGER for status/recount, authenticated for reads).
+- Built React pages in `apps/web`:
+  - `pages/InventoryPage.tsx` with Summary, Bins (drawer + recount modal), and Ledger tabs.
+  - `pages/WarehousePage.tsx` with 2D HTML/CSS layout (4 aisles, 48 shelves, 192 bins), fill level coloring, status badges, locate search, and tooltips.
+- Verification:
+  - `vitest run tests/phase2/phase2.test.ts`: 20/20 passed in 3.02s.
+  - Full test suite: 36/36 passed in 5.66s.
+  - `verify:integrity`: I01, I03, I04, I11, I12 PASS; others appropriately SKIP pending future phase tables.
+  - `npm run build -w apps/web`: clean build.
+- Phase 2 gate: PASSED.

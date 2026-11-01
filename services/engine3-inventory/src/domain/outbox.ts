@@ -22,3 +22,5 @@ export function emit(db: Database.Database, params: EmitEventParams): void {
     JSON.stringify(params.data)
   );
 }
+
+export const insertOutboxEvent = emit;

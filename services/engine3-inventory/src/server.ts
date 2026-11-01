@@ -11,6 +11,8 @@ import { healthRouter } from './routes/health.js';
 import { createAuthRouter } from './routes/auth.js';
 import { createProductsRouter } from './routes/products.js';
 import { createIntegrityRouter } from './routes/integrity.js';
+import { createInventoryRouter } from './routes/inventory.js';
+import { createWarehouseRouter } from './routes/warehouse.js';
 
 export function createApp(db: Database.Database): Express {
   const app = express();
@@ -24,6 +26,8 @@ export function createApp(db: Database.Database): Express {
   app.use(createAuthRouter(db));
   app.use(createProductsRouter(db));
   app.use(createIntegrityRouter(db));
+  app.use('/internal/v1/inventory', createInventoryRouter(db));
+  app.use('/internal/v1/warehouse', createWarehouseRouter(db));
 
   // Error handler
   app.use(errorHandler);
