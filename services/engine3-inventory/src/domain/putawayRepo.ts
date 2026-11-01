@@ -49,17 +49,17 @@ export function executePutaway(db: Database.Database, params: ExecutePutawayPara
   } | undefined;
 
   if (!line) {
-    throw new DomainError('NOT_FOUND', `Receipt line ${receipt_line_id} not found`, 404);
+    throw new DomainError('NOT_FOUND', `Receipt line ${receipt_line_id} not found`);
   }
 
   // 2. Validate quantity
   if (!Number.isInteger(qty) || qty <= 0) {
-    throw new DomainError('VALIDATION_ERROR', 'Quantity must be a positive integer', 400);
+    throw new DomainError('VALIDATION_ERROR', 'Quantity must be a positive integer');
   }
 
   const staged = line.qty_received - line.qty_put_away;
   if (qty > staged) {
-    throw new DomainError('INSUFFICIENT_STAGED_STOCK', 'Quantity exceeds staged stock', 400, {
+    throw new DomainError('INSUFFICIENT_STAGED_STOCK', 'Quantity exceeds staged stock', {
       staged,
       requested: qty
     });
@@ -84,7 +84,7 @@ export function executePutaway(db: Database.Database, params: ExecutePutawayPara
   `).run({ id: line.id, qty });
 
   if (updateLineRes.changes !== 1) {
-    throw new DomainError('INSUFFICIENT_STAGED_STOCK', 'Failed to update staged quantity on receipt line', 400);
+    throw new DomainError('INSUFFICIENT_STAGED_STOCK', 'Failed to update staged quantity on receipt line');
   }
 
   // 6. Generate Putaway Ref and Record Movement
@@ -212,17 +212,17 @@ export function executeRelocate(db: Database.Database, params: ExecuteRelocatePa
 
 
   if (from_bin === to_bin) {
-    throw new DomainError('VALIDATION_ERROR', 'Source and destination bin cannot be identical', 400);
+    throw new DomainError('VALIDATION_ERROR', 'Source and destination bin cannot be identical');
   }
 
   if (!Number.isInteger(qty) || qty <= 0) {
-    throw new DomainError('VALIDATION_ERROR', 'Quantity must be a positive integer', 400);
+    throw new DomainError('VALIDATION_ERROR', 'Quantity must be a positive integer');
   }
 
   // Check source bin exists
   const fromBin = db.prepare('SELECT code FROM bins WHERE code = ?').get(from_bin);
   if (!fromBin) {
-    throw new DomainError('UNKNOWN_BIN', `Source bin ${from_bin} not found`, 404);
+    throw new DomainError('UNKNOWN_BIN', `Source bin ${from_bin} not found`);
   }
 
   // Check source inventory
@@ -233,12 +233,12 @@ export function executeRelocate(db: Database.Database, params: ExecuteRelocatePa
   } | undefined;
 
   if (!inv || !inv.sku || inv.qty <= 0) {
-    throw new DomainError('INSUFFICIENT_STOCK', 'Source bin has no stock', 400);
+    throw new DomainError('INSUFFICIENT_STOCK', 'Source bin has no stock');
   }
 
   const unreserved = inv.qty - inv.reserved_qty;
   if (qty > unreserved) {
-    throw new DomainError('INSUFFICIENT_STOCK', 'Insufficient unreserved stock in source bin', 400, {
+    throw new DomainError('INSUFFICIENT_STOCK', 'Insufficient unreserved stock in source bin', {
       unreserved,
       requested: qty
     });

@@ -40,7 +40,7 @@ export async function callEngine3<T>(opts: Engine3RequestOptions): Promise<{ sta
 
     clearTimeout(timeoutId);
 
-    const json = await res.json().catch(() => null);
+    const json = (await res.json().catch(() => null)) as any;
 
     if (!res.ok) {
       if (json && json.error && json.error.code) {

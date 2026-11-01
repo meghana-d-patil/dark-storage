@@ -31,7 +31,7 @@ export async function callEngine2<T>(opts: Engine2RequestOptions): Promise<{ sta
 
     clearTimeout(timeoutId);
 
-    const json = await res.json().catch(() => null);
+    const json = (await res.json().catch(() => null)) as any;
 
     if (!res.ok) {
       if (json && json.error && json.error.code) {

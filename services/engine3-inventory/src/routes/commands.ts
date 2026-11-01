@@ -3,6 +3,7 @@ import Database from 'better-sqlite3';
 import { DomainError } from '@dark-storage/shared';
 import { runIdempotent } from '../domain/idempotency.js';
 import { executePutaway, executeRelocate } from '../domain/putawayRepo.js';
+import { executeReserveOrder } from '../domain/ordersRepo.js';
 
 export function createCommandsRouter(db: Database.Database): Router {
   const router = Router();
@@ -14,13 +15,13 @@ export function createCommandsRouter(db: Database.Database): Router {
       const taskId = req.header('X-Task-Id');
 
       if (!idempotency_key) {
-        throw new DomainError('VALIDATION_ERROR', 'idempotency_key is required in command body', 400);
+        throw new DomainError('VALIDATION_ERROR', 'idempotency_key is required in command body');
       }
       if (!actor || !actor.id) {
-        throw new DomainError('VALIDATION_ERROR', 'actor is required in command body', 400);
+        throw new DomainError('VALIDATION_ERROR', 'actor is required in command body');
       }
       if (!payload) {
-        throw new DomainError('VALIDATION_ERROR', 'payload is required in command body', 400);
+        throw new DomainError('VALIDATION_ERROR', 'payload is required in command body');
       }
 
       if (commandName === 'putaway') {
@@ -72,7 +73,32 @@ export function createCommandsRouter(db: Database.Database): Router {
         return;
       }
 
-      throw new DomainError('NOT_FOUND', `Unknown command ${commandName}`, 404);
+      if (commandName === 'reserve-order') {
+        const result = runIdempotent(
+          db,
+          {
+            key: idempotency_key,
+            scope: 'command:reserve-order',
+            body: payload,
+            actor
+          },
+          (txDb) => {
+            const order = executeReserveOrder(txDb, {
+              order_type: payload.order_type,
+              priority: payload.priority,
+              customer_ref: payload.customer_ref,
+              notes: payload.notes,
+              lines: payload.lines,
+              actor
+            });
+            return { status: 201, body: order };
+          }
+        );
+        res.status(result.status).json(result.body);
+        return;
+      }
+
+      throw new DomainError('NOT_FOUND', `Unknown command ${commandName}`);
     } catch (err) {
       next(err);
     }

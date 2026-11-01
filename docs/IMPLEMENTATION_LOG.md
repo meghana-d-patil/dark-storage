@@ -193,3 +193,35 @@
   - `verify:integrity`: exits 0 with checks I01, I03, I04, I05, I06, I11, I12 PASS.
   - `npm run build -w apps/web`: clean build.
 - Phase 5 gate: PASSED.
+
+## Phase 6 — Manual Orders & Stock Reservations: Execution & Verification
+- Applied migrations:
+  - `migrations/warehouse/006_orders.sql`: created `orders`, `order_lines`, and `reservations` tables with integrity constraints, check constraints (`status <> 'HELD' OR consumed_qty + released_qty < qty`), and indexing.
+- Implemented Shared Schemas (`packages/shared/src/schemas/orders.ts`):
+  - `createOrderSchema`: validates line limits (1..50), line quantities (1..10000), duplicate SKU prevention via `.refine()`, priorities, and order types.
+  - `cancelOrderSchema`: validates reason length (3..200).
+  - `orderQuerySchema`: handles pagination and filters.
+  - Exported interfaces: `OrderDto`, `OrderLineDto`, `ReservationDto`, `OrderSummaryDto`.
+- Implemented Engine 3 Orders Domain (`services/engine3-inventory/src/domain/ordersRepo.ts`):
+  - `allocateStock`: Best-fit single-bin allocation (smallest bin satisfying alone) with greedy multi-bin fallback (fewest stops), excluding inactive/blocked bins via `v_available_stock`.
+  - `executeReserveOrder`: Atomic all-or-nothing stock reservation within `runTx`. Checks line constraints, pre-checks ATP to prevent sequence consumption on shortage, reserves stock, creates reservations with status `HELD`, records audit log, and emits outbox events.
+  - `cancelOrder`: Cancels orders in cancellable statuses (`RESERVED`, `ASSIGNED`, `PICKING`, `PICKED` with 0 picked units), releases outstanding reservations atomically, marks status `CANCELLED`, records unreturned picked items, audits, and emits outbox events.
+  - `getOrder` & `listOrders`: Detailed retrieval with lines, reservations, summary stats, and audit entries.
+- Mounted Engine 3 Commands and Routes:
+  - `routes/commands.ts`: added `reserve-order` command mapping inside `runIdempotent`.
+  - `routes/orders.ts`: added `GET /internal/v1/orders`, `GET /internal/v1/orders/:ref`, and `POST /internal/v1/orders/:ref/cancel`.
+- Implemented Gateway Orchestration (`services/gateway/src/routes/orders.ts`):
+  - `POST /api/orders`: MANAGER role, enqueues `RESERVE_ORDER` in Engine 1 locking all order SKUs with mapped priority, long-polls for synchronous 201 or 202 async fallback.
+  - `POST /api/orders/:ref/cancel`: MANAGER role, proxies direct to Engine 3 with idempotency key.
+  - `GET /api/orders` & `GET /api/orders/:ref`: readable by all authenticated roles (including PICKER).
+- Implemented Web Frontend:
+  - `OrdersPage.tsx`: Filterable orders table (status, priority, search), badges, pagination, and direct link to creation.
+  - `NewOrderPage.tsx`: Type-ahead product search with Stored, Reserved, and Available (ATP) chips; editable line table; over-ATP submit prevention banner; async polling on 202; and shortage breakdown table on 409 `INSUFFICIENT_STOCK`.
+  - `OrderDetailPage.tsx`: Order facts card, reservation status strip, expandable per-line reservation breakdown by bin, audit history timeline, and cancellation modal with reason input.
+  - Navigation: added Orders link to `AppShell.tsx` navigation bar.
+- Verification:
+  - `vitest run tests/phase6/phase6.test.ts`: 21/21 passed in 5.81s.
+  - Full test suite: 116/116 passed across Phases 1-6 in 27.99s.
+  - `verify:integrity`: exits 0 with all checks PASS or valid SKIP.
+  - `npm run build -w apps/web`: clean build (zero TypeScript/Vite errors).
+- Phase 6 gate: PASSED.

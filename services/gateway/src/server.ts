@@ -13,6 +13,7 @@ import { receiptsRouter } from './routes/receipts.js';
 import { placementRouter } from './routes/placement.js';
 import { putawaysRouter } from './routes/putaways.js';
 import { tasksRouter } from './routes/tasks.js';
+import { ordersRouter } from './routes/orders.js';
 
 export function createApp(): Express {
   const app = express();
@@ -30,6 +31,7 @@ export function createApp(): Express {
   app.use('/api/placement', placementRouter);
   app.use('/api/putaways', putawaysRouter);
   app.use('/api/tasks', tasksRouter);
+  app.use('/api/orders', ordersRouter);
 
 
   // Unknown route handler

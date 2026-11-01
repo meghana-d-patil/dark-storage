@@ -41,7 +41,7 @@ export async function postTaskToEngine1(opts: {
     });
 
     if (!res.ok) {
-      const errBody = await res.json().catch(() => ({}));
+      const errBody = (await res.json().catch(() => ({}))) as any;
       if (errBody?.error?.code) {
         throw new DomainError(errBody.error.code as ErrorCode, errBody.error.message, errBody.error.details);
       }

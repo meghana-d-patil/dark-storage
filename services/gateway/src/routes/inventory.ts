@@ -132,7 +132,8 @@ inventoryRouter.post('/relocate', rbacMiddleware(['MANAGER', 'OPERATOR']), async
 
     const actor = {
       id: req.user!.id,
-      display_name: req.user!.display_name,
+      display_name: req.user!.name || (req.user as any).display_name,
+      name: req.user!.name,
       role: req.user!.role
     };
 
