@@ -18,6 +18,7 @@ import { createCommandsRouter } from './routes/commands.js';
 import { createPutawaysRouter } from './routes/putaways.js';
 import { createOrdersRouter } from './routes/orders.js';
 import { createMissionsRouter } from './routes/missions.js';
+import { createPickingRouter } from './routes/picking.js';
 
 export function createApp(db: Database.Database): Express {
   const app = express();
@@ -38,6 +39,7 @@ export function createApp(db: Database.Database): Express {
   app.use('/internal/v1/putaways', createPutawaysRouter(db));
   app.use(createOrdersRouter(db));
   app.use(createMissionsRouter(db));
+  app.use(createPickingRouter(db));
 
   // Error handler
   app.use(errorHandler);

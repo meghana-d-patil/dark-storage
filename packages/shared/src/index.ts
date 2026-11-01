@@ -11,3 +11,4 @@ export * from './schemas/putaways.js';
 export * from './schemas/tasks.js';
 export * from './schemas/orders.js';
 export * from './schemas/missions.js';
+export * from './schemas/picking.js';

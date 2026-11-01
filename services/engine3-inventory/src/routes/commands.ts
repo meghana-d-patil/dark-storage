@@ -4,6 +4,7 @@ import { DomainError } from '@dark-storage/shared';
 import { runIdempotent } from '../domain/idempotency.js';
 import { executePutaway, executeRelocate } from '../domain/putawayRepo.js';
 import { executeReserveOrder } from '../domain/ordersRepo.js';
+import { executePickConfirm, executeResolveException } from '../domain/pickingRepo.js';
 
 export function createCommandsRouter(db: Database.Database): Router {
   const router = Router();
@@ -92,6 +93,55 @@ export function createCommandsRouter(db: Database.Database): Router {
               actor
             });
             return { status: 201, body: order };
+          }
+        );
+        res.status(result.status).json(result.body);
+        return;
+      }
+
+      if (commandName === 'pick-confirm') {
+        const result = runIdempotent(
+          db,
+          {
+            key: idempotency_key,
+            scope: `command:pick-confirm:${payload.stop_ref}`,
+            body: payload,
+            actor
+          },
+          (txDb) => {
+            const pickRes = executePickConfirm(txDb, {
+              stop_ref: payload.stop_ref,
+              scanned_bin: payload.scanned_bin,
+              scanned_sku: payload.scanned_sku,
+              picked_qty: payload.picked_qty,
+              exception: payload.exception,
+              actor
+            });
+            return { status: 200, body: pickRes };
+          }
+        );
+        res.status(result.status).json(result.body);
+        return;
+      }
+
+      if (commandName === 'exception-resolve') {
+        const result = runIdempotent(
+          db,
+          {
+            key: idempotency_key,
+            scope: `command:exception-resolve:${payload.exception_ref}`,
+            body: payload,
+            actor
+          },
+          (txDb) => {
+            const resolveRes = executeResolveException(txDb, {
+              exception_ref: payload.exception_ref,
+              action: payload.action,
+              notes: payload.notes,
+              recount: payload.recount,
+              actor
+            });
+            return { status: 200, body: resolveRes };
           }
         );
         res.status(result.status).json(result.body);

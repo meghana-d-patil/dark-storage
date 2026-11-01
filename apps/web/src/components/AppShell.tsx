@@ -25,6 +25,7 @@ export const AppShell: React.FC<AppShellProps> = ({ navLinks }) => {
     { to: '/inventory', label: 'Inventory', testId: 'nav-inventory' },
     { to: '/orders', label: 'Orders', testId: 'nav-orders' },
     ...(isPickingRole ? [{ to: '/picking', label: 'Picking', testId: 'nav-picking' }] : []),
+    ...(isPickingRole ? [{ to: '/exceptions', label: 'Exceptions', testId: 'nav-exceptions' }] : []),
     { to: '/warehouse', label: 'Warehouse', testId: 'nav-warehouse' },
     ...(isManager ? [{ to: '/tasks', label: 'Tasks', testId: 'nav-tasks' }] : [])
   ];

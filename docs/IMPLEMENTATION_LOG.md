@@ -268,3 +268,38 @@
   - `verify:integrity`: exits 0 with all checks PASS or valid SKIP.
   - `npm run build -w apps/web`: clean build.
 - Phase 7 gate: PASSED.
+
+## Phase 8 — Actual Picking, Stock Deduction & Exceptions: Execution & Verification
+- Applied migrations:
+  - `migrations/warehouse/008_exceptions.sql`: created `pick_exceptions` table with unique partial index `uq_exc_open_stop` (`WHERE status = 'OPEN'`), status index, foreign keys, and check constraints.
+- Implemented Shared Schemas (`packages/shared/src/schemas/picking.ts`):
+  - `confirmPickSchema`: validates `scanned_bin`, `scanned_sku`, `picked_qty`, and optional exception for short picks.
+  - `reportProblemSchema`: validates `type` (`BIN_EMPTY`, `DAMAGED`, `WRONG_PRODUCT`, `OTHER`) and notes (3..300 chars).
+  - `resolveExceptionSchema`: validates `action` (`REALLOCATE`, `ACCEPT_SHORT`), notes, and optional recount `{ counted_qty }`.
+  - `exceptionQuerySchema`: handles pagination, status filter, and mission filter.
+  - Exported interfaces: `PickExceptionDto`, `PickConfirmationResultDto`.
+- Implemented Engine 3 Picking & Exceptions Domain (`services/engine3-inventory/src/domain/pickingRepo.ts`):
+  - `executePickConfirm`: Validates picker assignment, mission `IN_PROGRESS`, stop `PENDING`, verifies scanned bin and SKU, checks outstanding quantity, calls `stockOut(consumeReserved = true)`, updates reservation `consumed_qty`, writes `PICK` movement to `stock_movements`, increments `order_lines.qty_picked`, opens exception on short pick and sets `bin.recount_required = 1`, audits `PICK_CONFIRMED`, emits events (`pick.confirmed`, `inventory.changed`, `reservation.changed`), and invokes `maybeCompleteMission`.
+  - `executeReportProblem`: Zero pick problem reporting; opens `pick_exceptions`, marks stop `EXCEPTION_OPEN`, sets `bin.recount_required = 1` (except for `OTHER`), audits, and emits outbox events without stock changes.
+  - `executeResolveException`: Releases remaining reservation; runs optional `applyRecount` (clearing `recount_required`); handles `ACCEPT_SHORT` (increments `order_lines.qty_short`) or `REALLOCATE` (allocates stock excluding exception bin, creates new reservations and appends new stops); marks stop and exception `RESOLVED`; completes mission if all finished; audits and emits events.
+  - `getException`, `listExceptions`, `getRerouteInput`, `rerouteMission`.
+  - Extended `cancelOrder` to resolve open exceptions with `ORDER_CANCELLED`, mark stops `RESOLVED`, and record `unreturned_picked` in audit.
+- Integrated Commands & Routes:
+  - Added `pick-confirm` and `exception-resolve` to Engine 3 command router (`services/engine3-inventory/src/routes/commands.ts`).
+  - Added internal picking routes (`services/engine3-inventory/src/routes/picking.ts`).
+- Implemented Gateway Orchestration:
+  - `POST /api/pick-stops/:stop_ref/confirm`: PICKER role (own mission); loads stop to derive shelf resource, routes through Engine 1 (`PICK_CONFIRM`, resource `shelf:<shelf>`).
+  - `POST /api/pick-stops/:stop_ref/exception`: PICKER role (own mission); proxies directly to Engine 3.
+  - `GET /api/exceptions`: PICKER restricted strictly to own reported exceptions; MANAGER sees all.
+  - `GET /api/exceptions/:ref`: Enforces picker ownership check.
+  - `POST /api/exceptions/:ref/resolve`: MANAGER role; loads exception to derive SKU resource, routes through Engine 1 (`EXCEPTION_RESOLVE`, resource `sku:<SKU>`), then triggers best-effort rerouting if new stops were created.
+- Implemented Web UI:
+  - `MissionDetailPage.tsx`: Added Active Stop Card when `IN_PROGRESS`, scanned bin/sku inputs, picked quantity, short pick exception inputs, friendly error messages (`PRODUCT_MISMATCH`, `BIN_MISMATCH`, `QUANTITY_EXCEEDS_RESERVATION`), retry key reuse, problem reporting modal, and visual progress bars.
+  - `ExceptionsPage.tsx`: Created `/exceptions` route with filterable exceptions table, pagination, facts card, and resolve modal supporting both "Reallocate" and "Accept short" with optional recount.
+  - Added `/exceptions` to `App.tsx` and `AppShell.tsx`.
+- Verification:
+  - `vitest run tests/phase8/phase8.test.ts`: 26/26 passed.
+  - Full test suite: 161/161 passed across all 8 test suites in 43.66s.
+  - `npm run verify:integrity`: exits 0 with all 13 checks PASS (I01–I13 PASS).
+  - `npm run build -w apps/web`: clean build in 791ms.
+- Phase 8 gate: PASSED.
