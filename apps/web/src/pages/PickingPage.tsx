@@ -91,7 +91,7 @@ export const PickingPage: React.FC = () => {
             </thead>
             <tbody>
               {missions.map((m) => (
-                <tr key={m.id}>
+                <tr key={m.id} data-testid={`mission-row-${m.ref}`}>
                   <td>
                     <span style={{ fontWeight: 600, color: 'var(--color-primary)' }}>{m.ref}</span>
                   </td>

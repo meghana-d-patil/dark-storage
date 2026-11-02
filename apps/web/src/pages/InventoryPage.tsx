@@ -746,7 +746,7 @@ export const InventoryPage: React.FC = () => {
                       setRelocateSubmitting(false);
                     }
                   }}
-                  data-testid="relocate-confirm-btn"
+                  data-testid="bin-relocate-submit"
                 >
                   {relocateSubmitting ? 'Relocating…' : 'Confirm Relocation'}
                 </button>

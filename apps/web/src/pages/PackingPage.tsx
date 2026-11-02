@@ -115,7 +115,7 @@ export const PackingPage: React.FC = () => {
                   <div
                     key={item.order_ref}
                     onClick={() => handleSelectOrder(item)}
-                    data-testid={`pack-queue-item-${item.order_ref}`}
+                    data-testid={`pack-queue-${item.order_ref}`}
                     style={{
                       padding: '1rem',
                       borderBottom: '1px solid rgba(255,255,255,0.03)',
@@ -279,7 +279,7 @@ export const PackingPage: React.FC = () => {
                   <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.875rem' }}>
                     <input
                       type="checkbox"
-                      data-testid="accept-partial-checkbox"
+                      data-testid="pack-accept-partial-checkbox"
                       checked={acceptPartial}
                       onChange={(e) => setAcceptPartial(e.target.checked)}
                     />
@@ -298,7 +298,7 @@ export const PackingPage: React.FC = () => {
               <button
                 type="button"
                 className="btn btn-primary"
-                data-testid="confirm-pack-btn"
+                data-testid="pack-confirm-btn"
                 onClick={handleConfirmPack}
                 disabled={!canConfirm}
               >

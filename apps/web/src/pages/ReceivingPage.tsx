@@ -249,28 +249,28 @@ export const ReceivingPage: React.FC = () => {
         <button
           className={`tab-btn ${activeTab === 'new' ? 'active' : ''}`}
           onClick={() => setActiveTab('new')}
-          data-testid="receiving-tab-new"
+          data-testid="tab-new-intake"
         >
           New Intake
         </button>
         <button
           className={`tab-btn ${activeTab === 'staged' ? 'active' : ''}`}
           onClick={() => setActiveTab('staged')}
-          data-testid="receiving-tab-staged"
+          data-testid="tab-staged-stock"
         >
           Staged Stock
         </button>
         <button
           className={`tab-btn ${activeTab === 'receipts' ? 'active' : ''}`}
           onClick={() => setActiveTab('receipts')}
-          data-testid="receiving-tab-receipts"
+          data-testid="tab-receipts"
         >
           Receipts
         </button>
         <button
           className={`tab-btn ${activeTab === 'putaways' ? 'active' : ''}`}
           onClick={() => setActiveTab('putaways')}
-          data-testid="receiving-tab-putaways"
+          data-testid="tab-putaways"
         >
           Put-aways
         </button>
@@ -290,7 +290,7 @@ export const ReceivingPage: React.FC = () => {
                 justifyContent: 'space-between',
                 alignItems: 'center'
               }}
-              data-testid="receipt-success-banner"
+              data-testid="intake-success-banner"
             >
               <div>
                 Intake recorded as <strong>{successReceipt}</strong>
@@ -340,7 +340,7 @@ export const ReceivingPage: React.FC = () => {
                 placeholder="e.g. Acme Distribution"
                 value={supplier}
                 onChange={(e) => setSupplier(e.target.value)}
-                data-testid="receipt-supplier"
+                data-testid="intake-supplier"
               />
             </div>
             <div>
@@ -351,7 +351,7 @@ export const ReceivingPage: React.FC = () => {
                 placeholder="e.g. PO-88421"
                 value={referenceNo}
                 onChange={(e) => setReferenceNo(e.target.value)}
-                data-testid="receipt-ref-no"
+                data-testid="intake-reference"
               />
             </div>
             <div>
@@ -372,7 +372,7 @@ export const ReceivingPage: React.FC = () => {
                 placeholder="e.g. Pallet 1 of 2"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                data-testid="receipt-notes"
+                data-testid="intake-notes"
               />
             </div>
           </div>
@@ -460,7 +460,7 @@ export const ReceivingPage: React.FC = () => {
                 type="button"
                 className="btn btn-secondary"
                 onClick={handleAddLine}
-                data-testid="receipt-add-line"
+                data-testid="intake-add-line"
               >
                 Add Line
               </button>
@@ -487,9 +487,9 @@ export const ReceivingPage: React.FC = () => {
                     </td>
                   </tr>
                 ) : (
-                  lines.map((l) => (
+                  lines.map((l, i) => (
                     <tr key={l.sku}>
-                      <td><ProductLabel sku={l.sku} name={l.name} /></td>
+                      <td data-testid={`intake-line-sku-${i}`}><ProductLabel sku={l.sku} name={l.name} /></td>
                       <td>{l.category}</td>
                       <td>
                         {l.storage_class === 'HAZMAT' ? (
@@ -498,13 +498,14 @@ export const ReceivingPage: React.FC = () => {
                           <span className="badge badge-info">STD</span>
                         )}
                       </td>
-                      <td><strong>{l.qty}</strong></td>
+                      <td><strong data-testid={`intake-line-qty-${i}`}>{l.qty}</strong></td>
                       <td>
                         <button
                           type="button"
                           className="btn btn-secondary"
                           style={{ padding: '2px 8px', fontSize: 12 }}
                           onClick={() => handleRemoveLine(l.sku)}
+                          data-testid={`intake-line-remove-${i}`}
                         >
                           Remove
                         </button>
@@ -535,7 +536,7 @@ export const ReceivingPage: React.FC = () => {
               className="btn btn-primary"
               disabled={lines.length === 0 || intakeMutation.isPending}
               onClick={() => intakeMutation.mutate()}
-              data-testid="receipt-submit"
+              data-testid="intake-submit"
             >
               {intakeMutation.isPending ? 'Confirming...' : 'Confirm Intake'}
             </button>
@@ -587,7 +588,7 @@ export const ReceivingPage: React.FC = () => {
                         className="btn btn-secondary"
                         style={{ padding: '2px 8px', fontSize: 12 }}
                         onClick={() => setSelectedLineForAlloc(row)}
-                        data-testid={`alloc-btn-${row.line_id}`}
+                        data-testid={`staged-allocate-${row.line_id}`}
                       >
                         Allocate
                       </button>

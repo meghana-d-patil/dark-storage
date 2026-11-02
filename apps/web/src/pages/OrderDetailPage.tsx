@@ -157,7 +157,7 @@ export const OrderDetailPage: React.FC = () => {
             {isManager && order.status === 'RESERVED' && (
               <button
                 className="btn btn-primary"
-                data-testid="assign-picker-btn"
+                data-testid="order-assign-btn"
                 onClick={() => {
                   setIsReassign(false);
                   setSelectedPickerId(pickers[0]?.id ?? null);
@@ -448,7 +448,7 @@ export const OrderDetailPage: React.FC = () => {
               </button>
               <button
                 className="btn btn-primary"
-                data-testid="confirm-assign-btn"
+                data-testid="order-assign-confirm"
                 onClick={() => {
                   if (!selectedPickerId) return;
                   if (isReassign) {

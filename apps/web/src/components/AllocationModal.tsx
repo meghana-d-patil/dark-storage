@@ -307,6 +307,7 @@ export const AllocationModal: React.FC<AllocationModalProps> = ({ receiptLine, o
               disabled={isSubmitting || !!successBanner}
               onChange={(e) => setQty(parseInt(e.target.value, 10) || 0)}
               style={{ width: 80, padding: '4px 8px' }}
+              data-testid="alloc-qty"
             />
           </div>
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -334,7 +335,7 @@ export const AllocationModal: React.FC<AllocationModalProps> = ({ receiptLine, o
               justifyContent: 'space-between',
               alignItems: 'center'
             }}
-            data-testid="selected-bin-validation"
+            data-testid="alloc-validation-status"
           >
             <div>
               Selected Destination: <strong>{selectedBin}</strong> — {validationResult.message}
@@ -355,6 +356,7 @@ export const AllocationModal: React.FC<AllocationModalProps> = ({ receiptLine, o
             {data.recommended ? (
               <div
                 className="card"
+                data-testid="alloc-recommended-card"
                 style={{
                   padding: 16,
                   border: selectedBin === data.recommended.bin_code ? '2px solid var(--accent)' : '1px solid var(--border)',
@@ -376,7 +378,7 @@ export const AllocationModal: React.FC<AllocationModalProps> = ({ receiptLine, o
                       style={{ padding: '4px 12px' }}
                       disabled={isSubmitting || !!successBanner}
                       onClick={() => validateMutation.mutate(data.recommended!.bin_code)}
-                      data-testid="select-recommended-btn"
+                      data-testid="alloc-select-recommended"
                     >
                       {selectedBin === data.recommended.bin_code ? '✓ Selected' : 'Use Recommended'}
                     </button>
@@ -488,7 +490,7 @@ export const AllocationModal: React.FC<AllocationModalProps> = ({ receiptLine, o
                               style={{ padding: '2px 8px', fontSize: 12 }}
                               disabled={isSubmitting || !!successBanner}
                               onClick={() => validateMutation.mutate(alt.bin_code)}
-                              data-testid={`select-bin-${alt.bin_code}`}
+                              data-testid={`alloc-select-bin-${alt.bin_code}`}
                             >
                               {selectedBin === alt.bin_code ? 'Selected' : 'Select'}
                             </button>
@@ -506,6 +508,7 @@ export const AllocationModal: React.FC<AllocationModalProps> = ({ receiptLine, o
               <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
                 <input
                   type="checkbox"
+                  data-testid="alloc-show-all-toggle"
                   checked={showAllBins}
                   disabled={isSubmitting || !!successBanner}
                   onChange={(e) => setShowAllBins(e.target.checked)}
@@ -548,7 +551,7 @@ export const AllocationModal: React.FC<AllocationModalProps> = ({ receiptLine, o
                               style={{ padding: '2px 8px', fontSize: 12 }}
                               disabled={!b.valid || isSubmitting || !!successBanner}
                               onClick={() => validateMutation.mutate(b.bin_code)}
-                              data-testid={`select-bin-${b.bin_code}`}
+                              data-testid={`alloc-select-bin-${b.bin_code}`}
                             >
                               {selectedBin === b.bin_code ? 'Selected' : 'Select'}
                             </button>
@@ -599,7 +602,7 @@ export const AllocationModal: React.FC<AllocationModalProps> = ({ receiptLine, o
                     qty > receiptLine.qty_staged
                   }
                   onClick={handleConfirmPutaway}
-                  data-testid="confirm-putaway-btn"
+                  data-testid="alloc-confirm-btn"
                 >
                   {isSubmitting ? 'Confirming…' : 'Confirm Put-away'}
                 </button>

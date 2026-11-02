@@ -387,3 +387,31 @@
   - `npm run verify:integrity`: exits 0 with all 13 checks PASS (`I01`–`I13`).
   - `npm run build -w apps/web`: clean production build in 1.26s.
 - Phase 10 gate: PASSED. All 10 Phases of the PRD are 100% complete and verified.
+
+## Appendix B Compliance & UI Hardening Audit
+- Modified files:
+  - `apps/web/src/pages/ReceivingPage.tsx`
+  - `apps/web/src/components/AllocationModal.tsx`
+  - `apps/web/src/pages/InventoryPage.tsx`
+  - `apps/web/src/pages/OrderDetailPage.tsx`
+  - `apps/web/src/pages/PickingPage.tsx`
+  - `apps/web/src/pages/MissionDetailPage.tsx`
+  - `apps/web/src/pages/ExceptionsPage.tsx`
+  - `apps/web/src/pages/PackingPage.tsx`
+  - `vitest.config.ts`
+- Implementation details:
+  - Added and mapped 100% of the interactive and status `data-testid` attributes specified in **Appendix B — Mandatory `data-testid` Catalog**:
+    - Receiving tabs, intake supplier/reference/notes inputs, add line button, dynamic line rows (`intake-line-sku-${i}`, `intake-line-qty-${i}`, `intake-line-remove-${i}`), confirm intake, success banner, and staged allocate button (`staged-allocate-${line_id}`).
+    - Allocation modal quantity (`alloc-qty`), recommended card (`alloc-recommended-card`) & select (`alloc-select-recommended`), candidate bins (`alloc-select-bin-${bin_code}`), show all toggle (`alloc-show-all-toggle`), validation status (`alloc-validation-status`), and confirm button (`alloc-confirm-btn`).
+    - Inventory bin relocate submit (`bin-relocate-submit`).
+    - Order picker assign button (`order-assign-btn`) and modal confirmation (`order-assign-confirm`).
+    - Picking mission list rows (`mission-row-${mission_ref}`), mission start (`mission-start-btn`), active stop card (`current-stop-card`), barcode scans & qty (`pick-scan-bin`, `pick-scan-sku`, `pick-qty`), exception fields (`pick-exc-type`, `pick-exc-notes`), pick confirmation (`pick-confirm-btn`), and problem modal buttons (`pick-report-btn`, `pick-report-submit`).
+    - Exceptions rows (`exc-row-${exc_ref}`), recount input (`exc-resolve-recount`), and resolution buttons (`exc-resolve-reallocate`, `exc-resolve-accept-short`).
+    - Packing queue items (`pack-queue-${order_ref}`), manager partial checkbox (`pack-accept-partial-checkbox`), and confirm pack button (`pack-confirm-btn`).
+  - Automated scanner verifies 84 of 84 required test IDs are present with 0 missing.
+  - Adjusted `vitest.config.ts` to strictly adhere to Appendix C.2 sequential test execution (`fileParallelism: false`).
+- Verification & Test Metrics:
+  - `npm run build -w apps/web`: clean production Vite & TypeScript build (0 errors, 1.32s).
+  - `npm test`: 176/176 passed across all 9 phase test suites in 76.54s.
+  - `npm run test:e2e`: 9/9 passed in 10.19s.
+  - `npm run verify:integrity`: exits 0 with all 13 checks PASS (`I01`–`I13`).

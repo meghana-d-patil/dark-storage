@@ -187,7 +187,7 @@ export const ExceptionsPage: React.FC = () => {
               </tr>
             ) : (
               exceptions.map((exc) => (
-                <tr key={exc.id}>
+                <tr key={exc.id} data-testid={`exc-row-${exc.ref}`}>
                   <td>
                     <span style={{ fontWeight: 600, color: 'var(--color-primary)' }}>{exc.ref}</span>
                   </td>
@@ -382,7 +382,7 @@ export const ExceptionsPage: React.FC = () => {
               <input
                 type="number"
                 className="form-control"
-                data-testid="resolve-recount-input"
+                data-testid="exc-resolve-recount"
                 placeholder="e.g. 0 if bin is truly empty"
                 value={recountQty}
                 onChange={(e) => setRecountQty(e.target.value)}
@@ -407,7 +407,7 @@ export const ExceptionsPage: React.FC = () => {
               <button
                 type="button"
                 className="btn btn-warning"
-                data-testid="resolve-accept-short-btn"
+                data-testid="exc-resolve-accept-short"
                 onClick={() => handleResolve('ACCEPT_SHORT')}
                 disabled={resolveMutation.isPending}
               >
@@ -417,7 +417,7 @@ export const ExceptionsPage: React.FC = () => {
               <button
                 type="button"
                 className="btn btn-primary"
-                data-testid="resolve-reallocate-btn"
+                data-testid="exc-resolve-reallocate"
                 onClick={() => handleResolve('REALLOCATE')}
                 disabled={resolveMutation.isPending}
               >

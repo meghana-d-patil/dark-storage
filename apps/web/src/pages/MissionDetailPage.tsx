@@ -228,7 +228,7 @@ export const MissionDetailPage: React.FC = () => {
             {canStart && (
               <button
                 className="btn btn-primary"
-                data-testid="start-mission-btn"
+                data-testid="mission-start-btn"
                 onClick={() => startMutation.mutate()}
                 disabled={startMutation.isPending}
               >
@@ -360,7 +360,7 @@ export const MissionDetailPage: React.FC = () => {
       {/* ACTIVE STOP CARD (When IN_PROGRESS) */}
       {isPickingActive && currentStop && (
         <div
-          data-testid="active-stop-card"
+          data-testid="current-stop-card"
           style={{
             background: 'var(--color-bg-card)',
             border: '2px solid var(--color-primary, #3b82f6)',
@@ -419,7 +419,7 @@ export const MissionDetailPage: React.FC = () => {
               <input
                 type="text"
                 className="form-control"
-                data-testid="scan-bin-input"
+                data-testid="pick-scan-bin"
                 value={scannedBin}
                 onChange={(e) => setScannedBin(e.target.value)}
                 placeholder={`e.g. ${currentStop.bin_code}`}
@@ -434,7 +434,7 @@ export const MissionDetailPage: React.FC = () => {
               <input
                 type="text"
                 className="form-control"
-                data-testid="scan-sku-input"
+                data-testid="pick-scan-sku"
                 value={scannedSku}
                 onChange={(e) => setScannedSku(e.target.value)}
                 placeholder={`e.g. ${currentStop.sku}`}
@@ -449,7 +449,7 @@ export const MissionDetailPage: React.FC = () => {
               <input
                 type="number"
                 className="form-control"
-                data-testid="picked-qty-input"
+                data-testid="pick-qty"
                 value={pickedQty}
                 onChange={(e) => setPickedQty(e.target.value)}
                 min={1}
@@ -481,7 +481,7 @@ export const MissionDetailPage: React.FC = () => {
                   <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '0.25rem' }}>Reason Type *</label>
                   <select
                     className="form-control"
-                    data-testid="exception-type-select"
+                    data-testid="pick-exc-type"
                     value={exceptionType}
                     onChange={(e: any) => setExceptionType(e.target.value)}
                   >
@@ -496,7 +496,7 @@ export const MissionDetailPage: React.FC = () => {
                   <input
                     type="text"
                     className="form-control"
-                    data-testid="exception-notes-input"
+                    data-testid="pick-exc-notes"
                     value={exceptionNotes}
                     onChange={(e) => setExceptionNotes(e.target.value)}
                     placeholder="Provide details for manager..."
@@ -511,7 +511,7 @@ export const MissionDetailPage: React.FC = () => {
             <button
               type="button"
               className="btn btn-secondary"
-              data-testid="report-problem-btn"
+              data-testid="pick-report-btn"
               onClick={() => setShowProblemModal(true)}
             >
               Report Problem (Zero Pick)
@@ -520,7 +520,7 @@ export const MissionDetailPage: React.FC = () => {
             <button
               type="button"
               className="btn btn-primary"
-              data-testid="confirm-pick-btn"
+              data-testid="pick-confirm-btn"
               onClick={handleConfirmPick}
               disabled={isConfirmDisabled}
             >
@@ -678,7 +678,7 @@ export const MissionDetailPage: React.FC = () => {
               <button
                 type="button"
                 className="btn btn-danger"
-                data-testid="submit-problem-btn"
+                data-testid="pick-report-submit"
                 onClick={handleReportProblem}
                 disabled={problemNotes.trim().length < 3 || reportProblemMutation.isPending}
               >
