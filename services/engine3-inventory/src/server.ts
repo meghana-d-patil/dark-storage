@@ -21,6 +21,7 @@ import { createMissionsRouter } from './routes/missions.js';
 import { createPickingRouter } from './routes/picking.js';
 import { createPackingRouter } from './routes/packing.js';
 import { createDashboardRouter } from './routes/dashboard.js';
+import { createOutboxRouter } from './routes/outbox.js';
 
 export function createApp(db: Database.Database): Express {
   const app = express();
@@ -44,6 +45,7 @@ export function createApp(db: Database.Database): Express {
   app.use(createPickingRouter(db));
   app.use(createPackingRouter(db));
   app.use(createDashboardRouter(db));
+  app.use(createOutboxRouter(db));
 
   // Error handler
   app.use(errorHandler);

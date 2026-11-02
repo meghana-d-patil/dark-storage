@@ -1,7 +1,9 @@
 import express, { Express } from 'express';
 import cors from 'cors';
+import http from 'node:http';
 import path from 'node:path';
 import { config } from './config.js';
+import { WebSocketHub } from './ws/hub.js';
 import { requestIdMiddleware } from './middleware/requestId.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { healthRouter } from './routes/health.js';
@@ -62,14 +64,28 @@ export function createApp(): Express {
   return app;
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve('services/gateway/src/server.ts')) {
+export function startGatewayServer(port: number = config.GATEWAY_PORT): {
+  app: Express;
+  server: http.Server;
+  wsHub: WebSocketHub;
+} {
   const app = createApp();
-  const server = app.listen(config.GATEWAY_PORT, () => {
+  const server = http.createServer(app);
+  const wsHub = new WebSocketHub(server);
+
+  return { app, server, wsHub };
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve('services/gateway/src/server.ts')) {
+  const { app, server, wsHub } = startGatewayServer(config.GATEWAY_PORT);
+  server.listen(config.GATEWAY_PORT, () => {
     console.log(`Gateway listening on http://localhost:${config.GATEWAY_PORT}`);
   });
 
   const cleanup = () => {
-    server.close(() => process.exit(0));
+    wsHub.stop().finally(() => {
+      server.close(() => process.exit(0));
+    });
   };
 
   process.on('SIGTERM', cleanup);

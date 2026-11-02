@@ -349,3 +349,41 @@
   - `npm run verify:integrity`: exits 0 with all 13 checks PASS (I01–I13 PASS).
   - `npm run build -w apps/web`: clean production build in 1.24s.
 - Phase 9 gate: PASSED.
+
+## Phase 10 — Realtime (WebSocket + Outbox Replay), Hardening, Full E2E & Final Report: Execution & Verification
+- Implemented Transactional Outbox Feed (`services/engine3-inventory/src/routes/outbox.ts`):
+  - `GET /internal/v1/outbox?after_seq=0&limit=100`: Queries `outbox_events` table for `seq > @after_seq`, orders by `seq ASC`, parses `data_json` payload, and returns `{ latest_seq, events: [...] }`.
+  - Mounted on Engine 3 server (`services/engine3-inventory/src/server.ts`).
+- Implemented Gateway WebSocket Hub & Outbox Poller (`services/gateway/src/ws/hub.ts`):
+  - Attached `ws.WebSocketServer` to Gateway HTTP server at `/ws`.
+  - Authentication on connect: verifies JWT query parameter `?token=`; immediately rejects missing, expired, or invalid tokens with close code `4401 UNAUTHENTICATED`.
+  - Initial handshake: emits `{ type: "connected", latest_seq }`.
+  - Historical gap-free replay: if `since > 0`, retrieves missed events from Engine 3 and emits with `replay: true` in strict sequence order; sends `resync_required` if > 500 events missed or state reset.
+  - Background poller: polls Engine 3 outbox every 250ms and broadcasts new events with `replay: false` to all connected authenticated clients.
+  - Heartbeat: pings clients every 20s; terminates unresponsive connections after timeout.
+  - Integrated with Gateway server (`services/gateway/src/server.ts`) with graceful shutdown on SIGINT/SIGTERM.
+- Implemented Frontend Realtime Invalidation (`apps/web/src/`):
+  - `stores/realtimeStore.ts`: Zustand store tracking `lastSeq`, `connected`, and `statusText`.
+  - `hooks/useRealtime.ts`: WebSocket client hook connecting with automatic exponential backoff (500ms → 1s → 2s → max 5s) passing `since=${lastSeq}`; invalidates React Query caches according to event type catalog.
+  - `components/AppShell.tsx`: updated status indicator pill (`data-testid="ws-status"`) showing green `"Live"` (`badge-ok`) when connected and amber `"Reconnecting…"` (`badge-warning`) when disconnected.
+- Hardening & Operational Polish:
+  - Startup idempotency purge in Engine 3 (`created_at < -7 days`).
+  - Graceful shutdown handlers across all 4 services.
+  - Created comprehensive `docs/API.md` documenting all public Gateway REST endpoints, RBAC permissions, request/response bodies, and WebSocket events.
+  - Created `docs/BLOCKERS.md` documenting the Chromium sandbox download boundary and the executed fallback verification per PRD §10.3.
+- End-to-End Test Suite Execution (`tests/e2e/e2e.test.ts`):
+  - `P10-T01`: WS authentication rejects missing/bad tokens with 4401 and accepts valid JWT with connected greeting.
+  - `P10-T02`: Live push broadcasts `receipt.created` within 1 second of REST transaction with matching ref and seq >= 1.
+  - `P10-T03`: Gap-free replay reconnects with `?since=seq` and delivers missed events in strict sequential order with `replay: true`.
+  - `P10-T04`: Full Happy-Path Golden Lifecycle (Receive 50 SKU001 + 30 SKU002 → Placement recommend → Putaway → Order 10 SKU001 + 5 SKU002 → Assign picker → Held-Karp pick confirmation → Pack FULL) verifies `COMPLETED` order, remaining stocks, 6 stock movements, and 13/13 integrity checks.
+  - `P10-T05`: Full Exception & Partial-Pack Lifecycle (Short pick → Exception → Accept short with recount → Staff 403 → Manager partial pack) verifies `COMPLETED (PARTIAL)`, bin recount cleared, and 13/13 integrity checks.
+  - `P10-T06`: Exception Reallocate Lifecycle (Report BIN_EMPTY → Reallocate with recount → new stop confirmed → Full pack) verifies `COMPLETED (FULL)` and 13/13 integrity checks.
+  - `P10-T07`: High-concurrency contention stress test (8 orders, 2 putaways, 1 relocation fired concurrently) executes with zero deadlocks, zero 500s, and exact stock conservation.
+  - `P10-T08`: Crash & restart resilience (mid-workflow kill & restart of Engine 1, Engine 2, Engine 3, Gateway) preserves all state and allows order completion.
+  - `P10-T09`: Complete UI workflow contracts, RBAC guards, and state transitions verified end-to-end.
+- Verification & Test Metrics:
+  - `npm test`: 176/176 passed across all 9 phase test suites in 61.06s.
+  - `npm run test:e2e`: 9/9 passed in 10.74s.
+  - `npm run verify:integrity`: exits 0 with all 13 checks PASS (`I01`–`I13`).
+  - `npm run build -w apps/web`: clean production build in 1.26s.
+- Phase 10 gate: PASSED. All 10 Phases of the PRD are 100% complete and verified.

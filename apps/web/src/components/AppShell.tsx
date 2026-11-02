@@ -1,6 +1,8 @@
 import React from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore.js';
+import { useRealtime } from '../hooks/useRealtime.js';
+import { useRealtimeStore } from '../stores/realtimeStore.js';
 
 interface AppShellProps {
   navLinks?: Array<{ to: string; label: string; testId: string }>;
@@ -9,6 +11,8 @@ interface AppShellProps {
 export const AppShell: React.FC<AppShellProps> = ({ navLinks }) => {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
+  useRealtime();
+  const { connected, statusText } = useRealtimeStore();
 
   const handleLogout = () => {
     logout();
@@ -43,8 +47,11 @@ export const AppShell: React.FC<AppShellProps> = ({ navLinks }) => {
           <span>Dark Storage WMS</span>
         </div>
         <div className="header-actions">
-          <span className="badge badge-info" data-testid="ws-status">
-            WS Ready
+          <span
+            className={`badge ${connected ? 'badge-ok' : 'badge-warning'}`}
+            data-testid="ws-status"
+          >
+            {connected ? 'Live' : statusText || 'Reconnecting…'}
           </span>
           {user && (
             <span className="user-badge" data-testid="header-user">
