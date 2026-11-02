@@ -161,7 +161,7 @@ export async function startStack(options: { seed?: boolean } = {}): Promise<Runn
         if (cp && !cp.killed) {
           try {
             if (isWin && cp.pid) {
-              spawn('taskkill', ['/pid', cp.pid.toString(), '/f', '/t']);
+              spawnSync('taskkill', ['/pid', cp.pid.toString(), '/f', '/t']);
             } else {
               cp.kill('SIGKILL');
             }
