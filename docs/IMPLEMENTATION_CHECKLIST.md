@@ -10,5 +10,5 @@ Track progress strictly phase-by-phase. Tick items and record real command test 
 - [x] Phase 6: Orders + reservations (manual order creation, ATP, atomic reserve, cancel, P6-T01..T20) - PASSED (21/21 tests green, total 116/116 green, verify:integrity exits 0)
 - [x] Phase 7: Assignment + routing (picker assignment, graph, route planning, missions, P7-T01..T19) - PASSED (19/19 tests green, total 135/135 green, verify:integrity exits 0)
 - [x] Phase 8: Picking + exceptions (stop confirmation, partial picks, exceptions, resolution, P8-T01..T25) - PASSED (26/26 tests green, total 161/161 green, verify:integrity exits 0)
-- [ ] Phase 9: Packing + completion + dashboard + audit view (P9-T01..T15)
+- [x] Phase 9: Packing + completion + dashboard + audit view (P9-T01..T15) - PASSED (15/15 tests green, total 176/176 green, verify:integrity exits 0)
 - [ ] Phase 10: Realtime, recovery, hardening, full E2E, final report (P10 tests, E2E workflow, WS)

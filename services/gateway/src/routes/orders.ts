@@ -1,5 +1,5 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import { DomainError, createOrderSchema, cancelOrderSchema, assignMissionSchema, reassignMissionSchema } from '@dark-storage/shared';
+import { DomainError, createOrderSchema, cancelOrderSchema, assignMissionSchema, reassignMissionSchema, packOrderSchema } from '@dark-storage/shared';
 import { authMiddleware } from '../middleware/auth.js';
 import { rbacMiddleware } from '../middleware/rbac.js';
 import { runViaEngine1 } from '../clients/engine1.js';
@@ -205,3 +205,37 @@ ordersRouter.get('/:ref', async (req: Request, res: Response, next: NextFunction
     next(err);
   }
 });
+
+// POST /api/orders/:ref/pack (STAFF, MANAGER) - PROXY
+ordersRouter.post(
+  '/:ref/pack',
+  rbacMiddleware(['STAFF', 'MANAGER']),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const key = (req.headers['idempotency-key'] as string) || (req.headers['x-idempotency-key'] as string);
+      if (!key) {
+        throw new DomainError('IDEMPOTENCY_KEY_REQUIRED', 'Idempotency-Key header is required');
+      }
+
+      const parsed = packOrderSchema.parse(req.body);
+      const actor = {
+        id: req.user!.id,
+        role: req.user!.role,
+        display_name: req.user!.name
+      };
+
+      const result = await callEngine3({
+        method: 'POST',
+        path: `/internal/v1/orders/${req.params.ref}/pack`,
+        body: parsed,
+        requestId: req.requestId,
+        actor,
+        idempotencyKey: key
+      });
+
+      res.status(result.status).json(result.data);
+    } catch (err) {
+      next(err);
+    }
+  }
+);

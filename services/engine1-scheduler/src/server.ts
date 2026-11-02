@@ -1,4 +1,5 @@
 import express, { Express } from 'express';
+import type Database from 'better-sqlite3';
 import path from 'node:path';
 import { config } from './config.js';
 import { healthRouter } from './routes/health.js';
@@ -19,7 +20,7 @@ export function createApp(): Express {
 
 let activeScheduler: Scheduler | null = null;
 
-export function startSchedulerService(db = getSchedulerDb()): Scheduler {
+export function startSchedulerService(db: Database.Database = getSchedulerDb()): Scheduler {
   const scheduler = getScheduler(db);
   scheduler.start();
   activeScheduler = scheduler;

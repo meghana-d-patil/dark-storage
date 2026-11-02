@@ -303,3 +303,49 @@
   - `npm run verify:integrity`: exits 0 with all 13 checks PASS (I01–I13 PASS).
   - `npm run build -w apps/web`: clean build in 791ms.
 - Phase 8 gate: PASSED.
+
+## Phase 9 — Packing, Order Completion, Dashboard & Audit: Execution & Verification
+- Applied migrations:
+  - `migrations/warehouse/009_packing.sql`: created `packing_records` table with unique ref, foreign keys (`order_id`, `mission_id`, `packed_by`), check constraints (`fulfilment_type IN ('FULL','PARTIAL')`, `total_ordered > 0`, `total_picked > 0`), and timestamp. Applied to `./data/warehouse.db`.
+- Implemented Shared Schemas (`packages/shared/src/schemas/packing.ts`):
+  - `packOrderSchema`: validates optional `notes` (max 300 chars) and `accept_partial` boolean flag.
+  - `auditQuerySchema`: handles pagination, `entity_type`, `entity_id`, `actor`, and `action` filters.
+  - Exported interfaces: `PackingQueueItemDto`, `PackingQueueLineDto`, `PackingQueueExceptionDto`, `PackingResultDto`, `AuditItemDto`, `DashboardDto`.
+  - Re-exported via `packages/shared/src/index.ts`.
+- Implemented Engine 3 Packing Domain (`services/engine3-inventory/src/domain/packingRepo.ts`):
+  - `getPackingQueue`: Queries orders in status `PICKED`, ordered by priority; returns per-line numbers (`qty_ordered`, `qty_picked`, `qty_short`), totals, `fulfilment_preview`, `needs_manager_approval` flag, and associated exceptions.
+  - `executePackOrder`: Implements exact 10-step validation in `runIdempotent` + `runTx`:
+    1. Order status == `PICKED` (else `ORDER_STATE_INVALID`).
+    2. Latest mission of order is `COMPLETED` (else `PACK_INCOMPLETE`).
+    3. No stop `PENDING`/`EXCEPTION_OPEN`, no `OPEN` exception for order (else `PACK_INCOMPLETE`).
+    4. Every line: `qty_picked + qty_short == qty_ordered` (else `PACK_INCOMPLETE`).
+    5. Committed-deduction check: $\sum \text{PICK movements} == \sum \text{order\_lines.qty\_picked} == \sum \text{reservations.consumed\_qty}$ (else `INVENTORY_DRIFT`).
+    6. `total_picked == 0` throws `PACK_INCOMPLETE {reason: 'NOTHING_PICKED'}` (order must be cancelled).
+    7. If shortfall exists: actor must be `MANAGER` (else `PARTIAL_PACK_FORBIDDEN` 403) and `accept_partial` must be true (else `PACK_INCOMPLETE {requires_accept_partial: true, shortfall}`).
+    8. Inserts `packing_records(ref = nextRef('packing'), packed_by, fulfilment_type, totals, notes)`; updates `orders.status = 'COMPLETED'`, `fulfilment_type`, `completed_at`.
+    9. Audits `ORDER_PACKED`; emits `order.completed` and `order.status_changed`.
+    10. Returns 201 result DTO.
+- Implemented Engine 3 Dashboard & Audit Domain (`services/engine3-inventory/src/domain/dashboardRepo.ts`):
+  - `getDashboardMetrics`: Independent SQL aggregations for receiving today, staged units/lines, inventory (ATP, stored, reserved, unavailable, occupied/total bins, fill pct), orders by status, missions by status, open exceptions, movements today by type, and latest 10 formatted movements.
+  - `getAuditLogs`: Filterable audit log queries with pagination and actor lookup.
+- Implemented Engine 1 Stats Endpoint (`services/engine1-scheduler/src/routes/tasks.ts`):
+  - `GET /internal/v1/stats`: returns `{ queued_tasks, running_tasks, failed_tasks_24h }`.
+- Implemented Gateway Endpoints:
+  - `GET /api/packing/queue`: all authenticated roles can read.
+  - `POST /api/packing/:ref/pack` and `POST /api/orders/:ref/pack`: STAFF and MANAGER roles, requires `Idempotency-Key`, proxies to Engine 3.
+  - `GET /api/dashboard`: merges Engine 3 metrics with Engine 1 stats (`engine: null` fallback if unreachable).
+  - `GET /api/audit`: MANAGER only, filterable audit log.
+  - `GET /api/admin/integrity`: MANAGER only, runs all 13 integrity checks via Engine 3.
+- Implemented Web UI:
+  - `PackingPage.tsx` (`/packing`): Order queue on left with priority badges, lines inspection table on right with checkmarks/warnings, notes input, disabled button for STAFF when partial pack, checkbox confirmation for MANAGER when partial pack, success banner.
+  - `HomePage.tsx` (`/`): Real-time operations dashboard with service-health dots, 7 metric cards, warehouse fill bar, today's movement throughput cards, and latest 10 movements table.
+  - `AdminPage.tsx` (`/admin`): Tabbed manager view:
+    - Tab 1: Audit Log with entity/action/actor filters, paginated table, details inspection.
+    - Tab 2: Database Integrity with "Run integrity checks" button, overall status badge, and detailed check table with offending rows display.
+  - Mounted routes in `App.tsx` and updated navigation in `AppShell.tsx`.
+- Verification:
+  - `vitest run tests/phase9/phase9.test.ts`: 15/15 passed.
+  - Full test suite: 176/176 passed across all 9 test suites in 64.92s.
+  - `npm run verify:integrity`: exits 0 with all 13 checks PASS (I01–I13 PASS).
+  - `npm run build -w apps/web`: clean production build in 1.24s.
+- Phase 9 gate: PASSED.

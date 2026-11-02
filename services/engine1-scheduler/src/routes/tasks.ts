@@ -195,3 +195,18 @@ tasksRouter.get('/internal/v1/queue', (_req: Request, res: Response) => {
 
   res.json({ queue: scored });
 });
+
+tasksRouter.get('/internal/v1/stats', (_req: Request, res: Response) => {
+  const db = getSchedulerDb();
+  const queuedRow = db.prepare("SELECT COUNT(*) AS c FROM tasks WHERE status = 'QUEUED'").get() as { c: number };
+  const runningRow = db.prepare("SELECT COUNT(*) AS c FROM tasks WHERE status = 'RUNNING'").get() as { c: number };
+  const failedRow = db
+    .prepare("SELECT COUNT(*) AS c FROM tasks WHERE status = 'FAILED' AND created_at >= datetime('now', '-24 hours')")
+    .get() as { c: number };
+
+  res.json({
+    queued_tasks: queuedRow.c,
+    running_tasks: runningRow.c,
+    failed_tasks_24h: failedRow.c
+  });
+});

@@ -17,6 +17,7 @@ export const AppShell: React.FC<AppShellProps> = ({ navLinks }) => {
 
   const isReceivingRole = user?.role === 'MANAGER' || user?.role === 'OPERATOR';
   const isPickingRole = user?.role === 'MANAGER' || user?.role === 'PICKER';
+  const isPackingRole = user?.role === 'MANAGER' || user?.role === 'STAFF';
   const isManager = user?.role === 'MANAGER';
 
   const defaultLinks = [
@@ -25,9 +26,11 @@ export const AppShell: React.FC<AppShellProps> = ({ navLinks }) => {
     { to: '/inventory', label: 'Inventory', testId: 'nav-inventory' },
     { to: '/orders', label: 'Orders', testId: 'nav-orders' },
     ...(isPickingRole ? [{ to: '/picking', label: 'Picking', testId: 'nav-picking' }] : []),
+    ...(isPackingRole ? [{ to: '/packing', label: 'Packing', testId: 'nav-packing' }] : []),
     ...(isPickingRole ? [{ to: '/exceptions', label: 'Exceptions', testId: 'nav-exceptions' }] : []),
     { to: '/warehouse', label: 'Warehouse', testId: 'nav-warehouse' },
-    ...(isManager ? [{ to: '/tasks', label: 'Tasks', testId: 'nav-tasks' }] : [])
+    ...(isManager ? [{ to: '/tasks', label: 'Tasks', testId: 'nav-tasks' }] : []),
+    ...(isManager ? [{ to: '/admin', label: 'Admin', testId: 'nav-admin' }] : [])
   ];
 
 

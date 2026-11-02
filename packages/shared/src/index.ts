@@ -12,3 +12,4 @@ export * from './schemas/tasks.js';
 export * from './schemas/orders.js';
 export * from './schemas/missions.js';
 export * from './schemas/picking.js';
+export * from './schemas/packing.js';
