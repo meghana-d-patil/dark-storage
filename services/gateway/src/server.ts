@@ -2,6 +2,7 @@ import express, { Express } from 'express';
 import cors from 'cors';
 import http from 'node:http';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { config } from './config.js';
 import { WebSocketHub } from './ws/hub.js';
 import { requestIdMiddleware } from './middleware/requestId.js';
@@ -76,7 +77,13 @@ export function startGatewayServer(port: number = config.GATEWAY_PORT): {
   return { app, server, wsHub };
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve('services/gateway/src/server.ts')) {
+const isMain = process.argv[1] && (
+  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url) ||
+  path.resolve(process.argv[1]).replace(/\\/g, '/').endsWith('services/gateway/src/server.ts') ||
+  path.resolve(process.argv[1]).replace(/\\/g, '/').endsWith('src/server.ts')
+);
+
+if (isMain) {
   const { app, server, wsHub } = startGatewayServer(config.GATEWAY_PORT);
   server.listen(config.GATEWAY_PORT, () => {
     console.log(`Gateway listening on http://localhost:${config.GATEWAY_PORT}`);

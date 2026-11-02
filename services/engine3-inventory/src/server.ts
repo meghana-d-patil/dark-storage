@@ -2,6 +2,7 @@ import express, { Express } from 'express';
 import Database from 'better-sqlite3';
 import path from 'node:path';
 import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { config } from './config.js';
 import { openDb } from './db/connection.js';
 import { purgeOldIdempotencyKeys } from './domain/idempotency.js';
@@ -53,7 +54,13 @@ export function createApp(db: Database.Database): Express {
   return app;
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve('services/engine3-inventory/src/server.ts')) {
+const isMain = process.argv[1] && (
+  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url) ||
+  path.resolve(process.argv[1]).replace(/\\/g, '/').endsWith('services/engine3-inventory/src/server.ts') ||
+  path.resolve(process.argv[1]).replace(/\\/g, '/').endsWith('src/server.ts')
+);
+
+if (isMain) {
   fs.mkdirSync(path.dirname(config.WAREHOUSE_DB_PATH), { recursive: true });
   const db = openDb(config.WAREHOUSE_DB_PATH);
 

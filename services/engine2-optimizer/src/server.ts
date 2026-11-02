@@ -1,6 +1,7 @@
 import express, { Express } from 'express';
 import Database from 'better-sqlite3';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { config } from './config.js';
 import { healthRouter } from './routes/health.js';
 import { internalAuth } from './middleware/internalAuth.js';
@@ -20,7 +21,13 @@ export function createApp(db: Database.Database): Express {
   return app;
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve('services/engine2-optimizer/src/server.ts')) {
+const isMain = process.argv[1] && (
+  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url) ||
+  path.resolve(process.argv[1]).replace(/\\/g, '/').endsWith('services/engine2-optimizer/src/server.ts') ||
+  path.resolve(process.argv[1]).replace(/\\/g, '/').endsWith('src/server.ts')
+);
+
+if (isMain) {
   const db = new Database(config.WAREHOUSE_DB_PATH, { readonly: true });
   db.pragma('busy_timeout = 5000');
 

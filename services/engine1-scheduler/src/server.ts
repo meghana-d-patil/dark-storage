@@ -1,6 +1,7 @@
 import express, { Express } from 'express';
 import type Database from 'better-sqlite3';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { config } from './config.js';
 import { healthRouter } from './routes/health.js';
 import { internalAuth } from './middleware/internalAuth.js';
@@ -27,7 +28,13 @@ export function startSchedulerService(db: Database.Database = getSchedulerDb()):
   return scheduler;
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve('services/engine1-scheduler/src/server.ts')) {
+const isMain = process.argv[1] && (
+  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url) ||
+  path.resolve(process.argv[1]).replace(/\\/g, '/').endsWith('services/engine1-scheduler/src/server.ts') ||
+  path.resolve(process.argv[1]).replace(/\\/g, '/').endsWith('src/server.ts')
+);
+
+if (isMain) {
   const db = getSchedulerDb();
   startSchedulerService(db);
 

@@ -1,4 +1,33 @@
+import path from 'node:path';
+import fs from 'node:fs';
 import { z } from 'zod';
+
+function getRootDir(): string {
+  if (fs.existsSync(path.resolve(process.cwd(), 'package.json')) && fs.existsSync(path.resolve(process.cwd(), 'packages'))) {
+    return process.cwd();
+  }
+  return path.resolve(process.cwd(), '../..');
+}
+
+function loadRootEnv() {
+  const envPath = path.resolve(getRootDir(), '.env');
+  if (fs.existsSync(envPath)) {
+    const lines = fs.readFileSync(envPath, 'utf8').split('\n');
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      const eq = trimmed.indexOf('=');
+      if (eq > 0) {
+        const key = trimmed.slice(0, eq).trim();
+        const val = trimmed.slice(eq + 1).trim();
+        if (process.env[key] === undefined) {
+          process.env[key] = val;
+        }
+      }
+    }
+  }
+}
+loadRootEnv();
 
 const configSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
