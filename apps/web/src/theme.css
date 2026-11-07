@@ -969,3 +969,40 @@ tbody tr:hover td {
     break-inside: avoid !important;
   }
 }
+
+
+/* ==========================================================================
+   KEYBOARD SHORTCUTS STYLES
+   ========================================================================== */
+.nav-kbd {
+  margin-left: auto;
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background-color: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+}
+
+.hotkey-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: var(--bg-surface-elevated, #1e293b);
+  color: #f8fafc;
+  padding: 10px 18px;
+  border-radius: var(--radius-pill, 9999px);
+  border: 1px solid var(--border-strong, #475569);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  font-size: 13px;
+  font-weight: 600;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  animation: fadeIn 0.15s ease-out;
+}

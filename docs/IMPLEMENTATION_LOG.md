@@ -470,3 +470,22 @@
   - `npm run test:e2e`: 11/11 passed in 8.34s.
   - `npm run verify:integrity`: exits 0 with all 13 checks PASS (`I01`–`I13`).
   - `npm run build -w @dark-storage/web`: clean production build in 953ms.
+
+## Phase 8 — Keyboard Shortcuts: Plan
+### Planned files:
+- `apps/web/src/hooks/useHotkeys.ts` (pure keyboard shortcut handler and React hook with code matching, input focus suppression, e.repeat guard, and role awareness)
+- `apps/web/src/components/AppShell.tsx` (integrate useHotkeys, shortcut help dialog `data-testid="shortcut-help"`, 2s role toast, `aria-keyshortcuts` and `<kbd>` badges)
+- `apps/web/src/theme.css` (styling for `.nav-kbd`, `.shortcut-dialog`, and `.hotkey-toast`)
+- `tests/phase8-shortcuts/phase8_shortcuts.test.ts` (unit tests with synthetic KeyboardEvents for navigation, role gating, toast display, input focus suppression, and testid contracts)
+
+## Phase 8 — Keyboard Shortcuts: Completed
+- Implemented files:
+  - `apps/web/src/hooks/useHotkeys.ts`: pure event handler `handleHotkeyDown` and React hook `useHotkeys` supporting `event.code` matching (`KeyW`, `KeyP`, `KeyI`, `KeyH`, `KeyO`, `Slash`), ignoring `e.repeat`, ignoring inputs/textareas/selects/contenteditable, preventing default only when handled, and role-gating `Alt+P` for Manager/Picker while triggering toast on unauthorized roles.
+  - `apps/web/src/components/AppShell.tsx`: wired `useHotkeys`, added shortcut help modal (`data-testid="shortcut-help"`), added 2-second role toast alert, added `aria-keyshortcuts` attributes on navigation links, and added `<kbd className="nav-kbd">` badges in sidebar.
+  - `apps/web/src/theme.css`: styling for `.nav-kbd` and `.hotkey-toast`.
+  - `tests/phase8-shortcuts/phase8_shortcuts.test.ts`: 17 unit tests verifying synthetic key events for `Alt+W`, `Alt+I`, `Alt+H`, `Alt+O`, `Alt+P` (allowed for Manager/Picker, blocked with toast for Staff/Operator), `?` / `Alt+/` help dialog, input/textarea focus suppression, repeat key suppression, non-shortcut bypass, and UI testid contracts.
+- Verification & Test Metrics:
+  - `npm test`: 276/276 passed across all 18 test suites in 65.50s.
+  - `npm run test:e2e`: 11/11 passed in 9.02s.
+  - `npm run verify:integrity`: exits 0 with all 13 checks PASS (`I01`–`I13`).
+  - `npm run build -w @dark-storage/web`: clean production build in 1.11s.
