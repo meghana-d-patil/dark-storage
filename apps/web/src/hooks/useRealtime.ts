@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../stores/authStore.js';
-import { useRealtimeStore } from '../stores/realtimeStore.js';
+import { useRealtimeStore, FeedEvent } from '../stores/realtimeStore.js';
 
 const EVENT_KEY_MAP: Record<string, string[][]> = {
   'receipt.created': [['receipts'], ['staged'], ['inventory'], ['dashboard']],
@@ -23,12 +23,15 @@ const EVENT_KEY_MAP: Record<string, string[][]> = {
 export function useRealtime(): void {
   const queryClient = useQueryClient();
   const token = useAuthStore((s) => s.token);
-  const { lastSeq, setConnected, updateSeq } = useRealtimeStore();
+  const { setConnected, updateSeq } = useRealtimeStore();
 
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const backoffRef = useRef(500);
   const isUnmountedRef = useRef(false);
+
+  const pendingEventsRef = useRef<FeedEvent[]>([]);
+  const rafIdRef = useRef<number | null>(null);
 
   useEffect(() => {
     isUnmountedRef.current = false;
@@ -76,6 +79,35 @@ export function useRealtime(): void {
               updateSeq(msg.seq);
             }
 
+            // Buffer feed event and flush on single rAF frame
+            if (typeof msg.seq === 'number' && msg.event_type) {
+              pendingEventsRef.current.push({
+                seq: msg.seq,
+                event_type: msg.event_type,
+                entity_type: msg.entity_type,
+                entity_id: msg.entity_id,
+                data: (msg.data && typeof msg.data === 'object') ? msg.data : {},
+                created_at: msg.created_at || new Date().toISOString(),
+                replay: Boolean(msg.replay)
+              });
+
+              if (rafIdRef.current === null) {
+                const schedule = typeof requestAnimationFrame === 'function'
+                  ? requestAnimationFrame
+                  : (cb: FrameRequestCallback) => setTimeout(cb, 0);
+
+                rafIdRef.current = schedule(() => {
+                  rafIdRef.current = null;
+                  const pending = pendingEventsRef.current;
+                  pendingEventsRef.current = [];
+                  if (pending.length > 0) {
+                    useRealtimeStore.getState().pushEvents(pending);
+                  }
+                }) as unknown as number;
+              }
+            }
+
+            // Preserved query invalidation untouched
             const keys = EVENT_KEY_MAP[msg.event_type];
             if (keys) {
               for (const k of keys) {
@@ -122,6 +154,14 @@ export function useRealtime(): void {
       isUnmountedRef.current = true;
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
+      }
+      if (rafIdRef.current !== null) {
+        if (typeof cancelAnimationFrame === 'function') {
+          cancelAnimationFrame(rafIdRef.current);
+        } else {
+          clearTimeout(rafIdRef.current);
+        }
+        rafIdRef.current = null;
       }
       if (wsRef.current) {
         wsRef.current.close();

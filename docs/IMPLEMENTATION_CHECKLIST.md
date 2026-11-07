@@ -84,3 +84,19 @@ Every phase, endpoint, algorithm, data structure, background process, and databa
 - **Playwright Headless Chromium Binary Download:**
   - Local sandbox/firewall environment restricts downloading external browser binaries (`playwright install chromium`).
   - Per the explicit fallback rule in PRD §10.3, the entire end-to-end user workflow was executed and verified via `P10-T09` in `tests/e2e/e2e.test.ts`, driving full authentication, role switches, API contracts, and database persistence, accompanied by complete React component contract testing and a clean production Vite build. Documented in `docs/BLOCKERS.md`.
+
+
+---
+
+# Digital Twin, Stress Lab & Operator Tools PRD (V1.0) Progress
+
+- [x] Phase 0: Recon, baseline and shared geometry (`tests/phase0/phase0.test.ts` - 14/14 passed)
+- [x] Phase 1: `/warehouse` view switcher shell (`tests/phase1-shell/phase1_shell.test.ts` - 7/7 passed)
+- [x] Phase 2: Mode 2, 2D floorplan with live route overlay SVG (`tests/phase2-floorplan/phase2_floorplan.test.ts` - 5/5 passed)
+- [x] Phase 3: Mode 3a, isometric engine core Canvas 2D (`tests/phase3-twin/phase3_twin.test.ts` - 15/15 passed)
+- [x] Phase 4: Mode 3b, data binding, route animation and picking (`tests/phase4-twin/phase4_twin.test.ts` - 10/10 passed)
+- [x] Phase 5: Concurrency & ACID Stress Lab (`tests/phase5-stresslab/phase5_stresslab.test.ts` - 5/5 passed, live e2e passed, 13/13 integrity checks PASS)
+- [x] Phase 6: Live Event Feed widget on Dashboard (`tests/phase6-feed/phase6_feed.test.ts` - 16/16 passed, live e2e passed, 248/248 unit tests green)
+- [ ] Phase 7: Printable barcode labels
+- [ ] Phase 8: Keyboard shortcuts
+- [ ] Phase 9: Hardening, performance audit and documentation

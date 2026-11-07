@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { apiFetch } from '../api/client.js';
 import { DashboardDto } from '@dark-storage/shared';
+import { EventFeedDrawer } from '../features/feed/EventFeedDrawer.js';
 
 interface HealthStatus {
   gateway: 'ok' | 'down';
@@ -77,6 +78,9 @@ export const HomePage: React.FC = () => {
           <span style={{ fontSize: '13px' }}><strong style={{ color: 'var(--text-secondary)' }}>Engine 3 (Inventory):</strong> {health?.engine3 || 'checking...'}</span>
         </div>
       </div>
+
+      {/* Live Event Feed Widget */}
+      <EventFeedDrawer />
 
       {/* Metric Tiles */}
       {isLoading || !dashboard ? (

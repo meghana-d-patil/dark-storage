@@ -415,3 +415,27 @@
   - `npm test`: 176/176 passed across all 9 phase test suites in 76.54s.
   - `npm run test:e2e`: 9/9 passed in 10.19s.
   - `npm run verify:integrity`: exits 0 with all 13 checks PASS (`I01`–`I13`).
+
+## Phase 6 — Live Event Feed Widget (Dashboard `/`): Plan
+### Planned files:
+- `apps/web/src/stores/realtimeStore.ts` (extend with FeedEvent, ring buffer max 50, pushEvents, pushEvent, clearEvents)
+- `apps/web/src/hooks/useRealtime.ts` (rAF batching of incoming event pushes without disturbing query invalidation)
+- `apps/web/src/features/feed/eventFormatter.ts` (human summaries, relative timestamp formatting, event categorization)
+- `apps/web/src/features/feed/EventFeedDrawer.tsx` (collapsible drawer, connection indicator, filter chips, pause/resume view freeze, clear, relative time 1Hz interval)
+- `apps/web/src/pages/HomePage.tsx` (embed EventFeedDrawer cleanly while preserving all existing KPI tiles and testids)
+- `tests/phase6-feed/phase6_feed.test.ts` (unit & contract tests for ring buffer, dedupe, rAF batching, human formatting, pause/resume buffering)
+
+## Phase 6 — Live Event Feed Widget (Dashboard `/`): Completed
+- Implemented files:
+  - `apps/web/src/stores/realtimeStore.ts`: added `FeedEvent` interface, ring buffer capped at max 50 items (newest first), deduplication strictly by `seq`, `pushEvents`, `pushEvent`, and `clearEvents`.
+  - `apps/web/src/hooks/useRealtime.ts`: added single `requestAnimationFrame` batching buffer so rapid bursts of incoming / replayed events trigger only one store update; preserved all query invalidation mapping untouched.
+  - `apps/web/src/features/feed/eventFormatter.ts`: pure functions for human readable summaries (`pick.confirmed`, `inventory.changed` with <=3 or >3 truncation, `order.created`, `order.status_changed`, `order.completed`, `reservation.changed`, `mission.*`, `exception.*`, `bin.status_changed`, and fallback), relative timestamps ("just now", "12s ago", "2m ago", "2h ago", "2d ago"), and category mapping (`orders`, `missions`, `picks`, `inventory`, `exceptions`, `all`).
+  - `apps/web/src/features/feed/EventFeedDrawer.tsx`: collapsible drawer with connection indicator reusing `ws-status` state, filter chips, pause/resume view freeze with buffered count, clear action, and 1 Hz interval active only while open.
+  - `apps/web/src/pages/HomePage.tsx`: embedded `EventFeedDrawer` between service health strip and KPI tiles with 0 alterations to existing testids.
+  - `tests/phase6-feed/phase6_feed.test.ts`: 16 comprehensive unit & contract tests verifying testids, ring buffer capacity, deduplication, 500-event single-batch processing, human summaries, and relative time formatting.
+  - `tests/e2e/e2e.test.ts`: added live e2e test `P6-EventFeed-Live` verifying real outbox event delivery via WebSocket into feed.
+- Verification & Test Metrics:
+  - `npm test`: 248/248 passed across all 16 test suites in 62.83s.
+  - `npm run test:e2e`: 11/11 passed in 8.99s.
+  - `npm run verify:integrity`: exits 0 with all 13 checks PASS (`I01`–`I13`).
+  - `npm run build -w @dark-storage/web`: clean production build in 979ms.

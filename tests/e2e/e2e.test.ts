@@ -724,4 +724,69 @@ describe('Phase 10 — Realtime (WebSocket), Hardening, Resilience & Full E2E', 
     expect(finalInteg.status).toBe(200);
     expect(finalInteg.body.ok).toBe(true);
   });
+
+  it('P6-EventFeed-Live: Outbox events (order.created, reservation.changed, inventory.changed) stream via WebSocket to live feed', async () => {
+    const wsUrl = getWsUrl(managerToken);
+
+    const receivedEvents: any[] = [];
+    let wsReadyResolve: () => void;
+    const wsReady = new Promise<void>((res) => {
+      wsReadyResolve = res;
+    });
+
+    const ws = new WebSocket(wsUrl);
+    ws.on('open', () => {
+      // connected
+    });
+    ws.on('message', (raw) => {
+      const msg = JSON.parse(raw.toString());
+      if (msg.type === 'connected') {
+        wsReadyResolve();
+      } else if (msg.type === 'event') {
+        receivedEvents.push(msg);
+      }
+    });
+
+    await wsReady;
+
+    // Create an order
+    const feedKey = `feed-order-${Date.now()}`;
+    const orderRes = await manager.post('/api/orders', {
+      order_type: 'CUSTOMER',
+      priority: 'NORMAL',
+      lines: [{ sku: 'SKU001', qty: 1 }]
+    }, {
+      headers: { 'Idempotency-Key': feedKey }
+    });
+    expect([200, 201]).toContain(orderRes.status);
+    const orderRef = orderRes.body.ref;
+
+    // Wait up to 3.5s for WebSocket events to arrive
+    const start = Date.now();
+    while (Date.now() - start < 3500) {
+      const oc = receivedEvents.find((e) => e.event_type === 'order.created' && e.entity_id === orderRef);
+      const rc = receivedEvents.find((e) => e.event_type === 'reservation.changed' && (e.data?.order_ref === orderRef || e.entity_id === orderRef));
+      const ic = receivedEvents.find((e) => e.event_type === 'inventory.changed' && e.seq >= (oc?.seq ?? 0));
+      if (oc && rc && ic) {
+        break;
+      }
+      await new Promise((r) => setTimeout(r, 100));
+    }
+
+    ws.close();
+
+    const orderCreated = receivedEvents.find((e) => e.event_type === 'order.created' && e.entity_id === orderRef);
+    const resChanged = receivedEvents.find((e) => e.event_type === 'reservation.changed' && (e.data?.order_ref === orderRef || e.entity_id === orderRef));
+    const invChanged = receivedEvents.find((e) => e.event_type === 'inventory.changed' && e.seq >= (orderCreated?.seq ?? 0));
+
+    expect(orderCreated).toBeDefined();
+    expect(orderCreated.seq).toBeGreaterThan(0);
+    expect(orderCreated.entity_id).toBe(orderRef);
+
+    expect(resChanged).toBeDefined();
+    expect(resChanged.seq).toBeGreaterThan(0);
+
+    expect(invChanged).toBeDefined();
+    expect(invChanged.seq).toBeGreaterThan(0);
+  });
 });
