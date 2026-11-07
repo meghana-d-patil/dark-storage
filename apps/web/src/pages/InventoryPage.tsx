@@ -4,6 +4,7 @@ import { apiFetch } from '../api/client.js';
 import { useAuthStore } from '../stores/authStore.js';
 import { ProductLabel } from '../components/ProductLabel.js';
 import { StatusBadge } from '../components/StatusBadge.js';
+import { LabelPrintModal } from '../components/LabelPrintModal.js';
 
 interface SummaryItem {
   sku: string;
@@ -67,6 +68,11 @@ export const InventoryPage: React.FC = () => {
   const [relocateDestBin, setRelocateDestBin] = useState('');
   const [relocateValidation, setRelocateValidation] = useState<{ valid: boolean; message: string } | null>(null);
   const [relocateSubmitting, setRelocateSubmitting] = useState(false);
+
+  // Label print modal state
+  const [labelModalOpen, setLabelModalOpen] = useState(false);
+  const [printValue, setPrintValue] = useState('');
+  const [printTab, setPrintTab] = useState<'sku' | 'bin' | 'receipt'>('sku');
 
   const user = useAuthStore((s) => s.user);
   const isManager = user?.role === 'MANAGER';
@@ -205,15 +211,29 @@ export const InventoryPage: React.FC = () => {
       {/* Tab 1: Summary */}
       {activeTab === 'summary' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div style={{ maxWidth: 360 }}>
-            <input
-              type="text"
-              placeholder="Search by name or SKU..."
-              className="input"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              data-testid="inv-search"
-            />
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+            <div style={{ maxWidth: 360, flex: 1 }}>
+              <input
+                type="text"
+                placeholder="Search by name or SKU..."
+                className="input"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                data-testid="inv-search"
+              />
+            </div>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={() => {
+                setPrintTab('sku');
+                setPrintValue('');
+                setLabelModalOpen(true);
+              }}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+            >
+              🏷️ Print Labels
+            </button>
           </div>
 
           <div className="table-container">
@@ -227,13 +247,14 @@ export const InventoryPage: React.FC = () => {
                   <th>Available</th>
                   <th>Staged</th>
                   <th>Bins Used</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {summaryLoading ? (
-                  <tr><td colSpan={7}>Loading summary...</td></tr>
+                  <tr><td colSpan={8}>Loading summary...</td></tr>
                 ) : summaryData?.items.length === 0 ? (
-                  <tr><td colSpan={7}>No products found.</td></tr>
+                  <tr><td colSpan={8}>No products found.</td></tr>
                 ) : (
                   summaryData?.items.map((item) => (
                     <tr
@@ -251,6 +272,22 @@ export const InventoryPage: React.FC = () => {
                       <td><strong>{item.available_to_promise}</strong></td>
                       <td>{item.staged_qty}</td>
                       <td>{item.bins_used}</td>
+                      <td>
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setPrintTab('sku');
+                            setPrintValue(item.sku);
+                            setLabelModalOpen(true);
+                          }}
+                          title="Print SKU label"
+                          style={{ fontSize: '11px', padding: '2px 8px' }}
+                        >
+                          🏷️ Print
+                        </button>
+                      </td>
                     </tr>
                   ))
                 )}
@@ -760,6 +797,14 @@ export const InventoryPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Label Print Modal */}
+      <LabelPrintModal
+        isOpen={labelModalOpen}
+        onClose={() => setLabelModalOpen(false)}
+        initialTab={printTab}
+        initialValue={printValue}
+      />
     </div>
   );
 };

@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { apiFetch } from '../api/client.js';
 import { useAuthStore } from '../stores/authStore.js';
 import { StressLabView } from '../features/stresslab/StressLabView.js';
+import { LabelPrintModal } from '../components/LabelPrintModal.js';
 
 interface AuditItem {
   id: number;
@@ -39,6 +40,7 @@ export const AdminPage: React.FC = () => {
   const [filterActor, setFilterActor] = useState('');
   const [filterAction, setFilterAction] = useState('');
   const [page, setPage] = useState(1);
+  const [labelModalOpen, setLabelModalOpen] = useState(false);
 
   // Applied filters (on submit)
   const [appliedFilters, setAppliedFilters] = useState<{
@@ -126,6 +128,15 @@ export const AdminPage: React.FC = () => {
             Audit logs, database verification, and system integrity status.
           </p>
         </div>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={() => setLabelModalOpen(true)}
+          data-testid="admin-open-label-studio"
+          style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+        >
+          🏷️ Label Studio
+        </button>
       </div>
 
       {/* Main Tab Navigation */}
@@ -456,6 +467,13 @@ export const AdminPage: React.FC = () => {
 
       {/* Main Tab: Concurrency & ACID Stress Lab */}
       {mainTab === 'stresslab' && <StressLabView />}
+
+      {/* Label Print Modal */}
+      <LabelPrintModal
+        isOpen={labelModalOpen}
+        onClose={() => setLabelModalOpen(false)}
+        initialTab="bin"
+      />
     </div>
   );
 };

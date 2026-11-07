@@ -4,6 +4,7 @@ import { apiFetch } from '../api/client.js';
 import { ProductLabel } from '../components/ProductLabel.js';
 import { StatusBadge } from '../components/StatusBadge.js';
 import { AllocationModal } from '../components/AllocationModal.js';
+import { LabelPrintModal } from '../components/LabelPrintModal.js';
 
 interface ProductItem {
   sku: string;
@@ -121,6 +122,10 @@ export const ReceivingPage: React.FC = () => {
   const [receiptsSearch, setReceiptsSearch] = useState('');
   const [selectedReceiptRef, setSelectedReceiptRef] = useState<string | null>(null);
   const [selectedLineForAlloc, setSelectedLineForAlloc] = useState<StagedLineItem | null>(null);
+
+  // Label print modal state
+  const [labelModalOpen, setLabelModalOpen] = useState(false);
+  const [printReceiptRef, setPrintReceiptRef] = useState('');
 
   // Queries
   const cleanedSearch = React.useMemo(() => {
@@ -658,13 +663,14 @@ export const ReceivingPage: React.FC = () => {
                   <th>Units</th>
                   <th>Received By</th>
                   <th>Date</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {receiptsLoading ? (
-                  <tr><td colSpan={8}>Loading receipts...</td></tr>
+                  <tr><td colSpan={9}>Loading receipts...</td></tr>
                 ) : !receiptsData || receiptsData.items.length === 0 ? (
-                  <tr><td colSpan={8}>No receipts found.</td></tr>
+                  <tr><td colSpan={9}>No receipts found.</td></tr>
                 ) : (
                   receiptsData.items.map((r) => (
                     <tr
@@ -680,6 +686,20 @@ export const ReceivingPage: React.FC = () => {
                       <td>{r.total_units}</td>
                       <td>{r.received_by_name}</td>
                       <td>{new Date(r.received_at).toLocaleString()}</td>
+                      <td>
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setPrintReceiptRef(r.ref);
+                            setLabelModalOpen(true);
+                          }}
+                          style={{ fontSize: '11px', padding: '2px 8px' }}
+                        >
+                          🏷️ Print
+                        </button>
+                      </td>
                     </tr>
                   ))
                 )}
@@ -694,7 +714,20 @@ export const ReceivingPage: React.FC = () => {
         <div className="drawer-backdrop" onClick={() => setSelectedReceiptRef(null)}>
           <div className="drawer-content" onClick={(e) => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3>Receipt: {receiptDetail.ref}</h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <h3 style={{ margin: 0 }}>Receipt: {receiptDetail.ref}</h3>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => {
+                    setPrintReceiptRef(receiptDetail.ref);
+                    setLabelModalOpen(true);
+                  }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px' }}
+                >
+                  🏷️ Print Label
+                </button>
+              </div>
               <button className="btn btn-secondary" onClick={() => setSelectedReceiptRef(null)}>
                 Close
               </button>
@@ -811,6 +844,14 @@ export const ReceivingPage: React.FC = () => {
           )}
         </div>
       )}
+
+      {/* Label Print Modal */}
+      <LabelPrintModal
+        isOpen={labelModalOpen}
+        onClose={() => setLabelModalOpen(false)}
+        initialTab="receipt"
+        initialValue={printReceiptRef}
+      />
     </div>
   );
 };

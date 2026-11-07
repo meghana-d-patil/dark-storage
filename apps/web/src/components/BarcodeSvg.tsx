@@ -1,101 +1,131 @@
 import React, { useMemo } from 'react';
+import { encodeCode128B, generateBarcodeSvgPath } from '../lib/code128.js';
 
-interface BarcodeSvgProps {
+export interface BarcodeSvgProps {
   value: string;
   label?: string;
-  width?: number;
-  height?: number;
+  moduleWidth?: number;
+  barHeight?: number;
+  showText?: boolean;
+  quietZone?: number;
+  className?: string;
+  style?: React.CSSProperties;
 }
 
 export const BarcodeSvg: React.FC<BarcodeSvgProps> = ({
   value,
   label,
-  width = 170,
-  height = 36
+  moduleWidth = 2,
+  barHeight = 48,
+  showText = true,
+  quietZone = 10,
+  className = '',
+  style = {}
 }) => {
-  // Generate deterministic Code 128 / Code 39 pseudo barcode pattern
-  const bars = useMemo(() => {
-    const pattern: number[] = [2, 1, 1, 2]; // start quiet & guard
-    for (let i = 0; i < value.length; i++) {
-      const c = value.charCodeAt(i);
-      pattern.push(
-        (c % 3) + 1,
-        ((c >> 1) % 2) + 1,
-        ((c >> 2) % 3) + 1,
-        ((c >> 3) % 2) + 1
-      );
+  const result = useMemo(() => {
+    if (!value || typeof value !== 'string') {
+      return null;
     }
-    pattern.push(2, 1, 2, 2); // stop guard
-    return pattern;
-  }, [value]);
+    try {
+      const encoding = encodeCode128B(value.trim());
+      const pathRes = generateBarcodeSvgPath(
+        encoding.symbols,
+        moduleWidth,
+        barHeight,
+        quietZone
+      );
+      return {
+        ...encoding,
+        ...pathRes
+      };
+    } catch (err) {
+      console.warn('[BarcodeSvg] Error encoding Code 128:', err);
+      return null;
+    }
+  }, [value, moduleWidth, barHeight, quietZone]);
 
-  const totalWidthUnits = bars.reduce((a, b) => a + b, 0);
-  let currentX = 0;
+  if (!result) {
+    return (
+      <div
+        className={`barcode-container barcode-error ${className}`}
+        style={{
+          display: 'inline-flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          padding: '8px 12px',
+          backgroundColor: '#fff',
+          border: '1px dashed var(--accent-danger, #ef4444)',
+          borderRadius: '4px',
+          ...style
+        }}
+      >
+        <span style={{ fontSize: '12px', color: 'var(--accent-danger, #ef4444)', fontWeight: 600 }}>
+          Invalid Barcode Value
+        </span>
+      </div>
+    );
+  }
+
+  const svgHeight = showText ? result.totalHeight + 20 : result.totalHeight;
 
   return (
     <div
+      className={`barcode-container ${className}`}
       style={{
         display: 'inline-flex',
         flexDirection: 'column',
         alignItems: 'center',
         backgroundColor: '#ffffff',
-        padding: '6px 12px',
-        borderRadius: '8px',
-        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.25)',
-        border: '1px solid rgba(255, 255, 255, 0.4)'
+        padding: '10px 14px',
+        borderRadius: '6px',
+        border: '1px solid #e2e8f0',
+        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)',
+        ...style
       }}
-      title={`Barcode: ${value}`}
+      title={`Code 128: ${value}`}
     >
       {label && (
         <span
           style={{
-            fontSize: '9px',
+            fontSize: '10px',
             color: '#475569',
             fontWeight: 800,
-            letterSpacing: '0.06em',
+            letterSpacing: '0.08em',
             textTransform: 'uppercase',
-            marginBottom: '3px'
+            marginBottom: '4px'
           }}
         >
           {label}
         </span>
       )}
+
       <svg
-        width={width}
-        height={height}
-        viewBox={`0 0 ${totalWidthUnits * 2} 40`}
-        style={{ display: 'block' }}
+        data-testid="barcode-svg"
+        width={result.totalWidth}
+        height={svgHeight}
+        viewBox={`0 0 ${result.totalWidth} ${svgHeight}`}
+        style={{ display: 'block', maxWidth: '100%', height: 'auto' }}
+        xmlns="http://www.w3.org/2000/svg"
       >
-        {bars.map((barWidth, idx) => {
-          const x = currentX;
-          currentX += barWidth * 2;
-          if (idx % 2 === 0) {
-            return (
-              <rect
-                key={idx}
-                x={x}
-                y={0}
-                width={barWidth * 1.9}
-                height={40}
-                fill="#0f172a"
-              />
-            );
-          }
-          return null;
-        })}
+        {/* Single path for all bars */}
+        <path d={result.pathData} fill="#000000" />
+
+        {/* Human-readable text below bars */}
+        {showText && (
+          <text
+            x={result.totalWidth / 2}
+            y={result.totalHeight + 15}
+            textAnchor="middle"
+            fill="#000000"
+            fontFamily="var(--font-mono, monospace)"
+            fontSize="13"
+            fontWeight="700"
+            letterSpacing="0.08em"
+          >
+            {value}
+          </text>
+        )}
       </svg>
-      <span
-        style={{
-          fontFamily: 'var(--font-mono, monospace)',
-          fontSize: '11px',
-          fontWeight: 700,
-          color: '#0f172a',
-          marginTop: '3px',
-          letterSpacing: '0.12em'
-        }}
-      >
-        *{value}*
-      </span>
     </div>
   );
 };

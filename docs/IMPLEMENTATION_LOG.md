@@ -439,3 +439,34 @@
   - `npm run test:e2e`: 11/11 passed in 8.99s.
   - `npm run verify:integrity`: exits 0 with all 13 checks PASS (`I01`–`I13`).
   - `npm run build -w @dark-storage/web`: clean production build in 979ms.
+
+## Phase 7 — Printable Barcode Labels: Plan
+### Planned files:
+- `apps/web/src/lib/code128.ts` (pure TypeScript Code 128 subset B encoder with test vectors and single-path SVG generator)
+- `apps/web/src/components/BarcodeSvg.tsx` (re-engineered single-path SVG barcode with quiet zones and data-testid="barcode-svg")
+- `apps/web/src/components/LabelPrintModal.tsx` (interactive modal with Receipt, Bin, and SKU tabs, 50x25 / 100x50 presets, copy button, print sheet)
+- `apps/web/src/pages/WarehousePage.tsx` (entry point for bin labels)
+- `apps/web/src/pages/InventoryPage.tsx` (entry point for SKU labels)
+- `apps/web/src/pages/ReceivingPage.tsx` (entry point for receipt labels)
+- `apps/web/src/pages/AdminPage.tsx` (Label Studio entry point)
+- `apps/web/src/theme.css` (@media print styles hiding everything except the printable label sheet)
+- `tests/phase7-labels/phase7_labels.test.ts` (unit tests for encoder test vectors SKU001, A-01-L-1, RCV-0001, pattern module sums, SVG path generation, and modal contracts)
+
+## Phase 7 — Printable Barcode Labels: Completed
+- Implemented files:
+  - `apps/web/src/lib/code128.ts`: pure TypeScript Code 128 subset B encoder implementing 107 standard ISO/IEC 15417 patterns, start symbol 104, stop symbol 106, checksum mod 103, returning exact module widths and single-path SVG generator with 10-module quiet zones.
+  - `apps/web/src/components/BarcodeSvg.tsx`: SVG renderer using a single `<path>` element for all bars (0 `<rect>` tags), configurable module width and height, 10-module quiet zones, human-readable text, and `data-testid="barcode-svg"`.
+  - `apps/web/src/components/LabelPrintModal.tsx`: interactive dialog with Receipt, Bin Location, and SKU tabs (`data-testid="label-tab-receipt|bin|sku"`), presets for 50×25 mm and 100×50 mm, copies counter, clipboard "Copy value" button, print button (`data-testid="label-print-btn"`), and printable sheet.
+  - `apps/web/src/theme.css`: `@media print` rules hiding the UI and exposing only `.printable-labels-sheet` with exact preset dimensions and page-break isolation.
+  - Entry points wired into:
+    - `WarehousePage.tsx`: Mode 1 hover tooltip and toolbar button.
+    - `TwinCanvas.tsx`: Mode 3 twin pinned bin card button.
+    - `InventoryPage.tsx`: table row actions and toolbar button.
+    - `ReceivingPage.tsx`: receipt detail drawer and table row actions.
+    - `AdminPage.tsx`: "🏷️ Label Studio" button (`data-testid="admin-open-label-studio"`).
+  - `tests/phase7-labels/phase7_labels.test.ts`: 11 unit tests verifying test vectors (`SKU001` -> checksum 28, `A-01-L-1` -> checksum 11, `RCV-0001` -> checksum 38), pattern module sums (11 modules for 0..105, 13 for 106), single path SVG generator, and UI contracts.
+- Verification & Test Metrics:
+  - `npm test`: 259/259 passed across all 17 test suites in 64.89s.
+  - `npm run test:e2e`: 11/11 passed in 8.34s.
+  - `npm run verify:integrity`: exits 0 with all 13 checks PASS (`I01`–`I13`).
+  - `npm run build -w @dark-storage/web`: clean production build in 953ms.

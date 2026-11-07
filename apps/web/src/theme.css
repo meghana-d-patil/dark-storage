@@ -919,3 +919,53 @@ tbody tr:hover td {
   height: 16px;
   border-radius: 5px;
 }
+
+
+/* ==========================================================================
+   PRINT STYLES FOR BARCODE LABELS
+   ========================================================================== */
+.printable-labels-sheet {
+  display: none;
+}
+
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Hide everything on screen */
+  body > * {
+    display: none !important;
+  }
+
+  /* Reveal only the printable labels sheet */
+  .printable-labels-sheet {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 4mm !important;
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    background: #ffffff !important;
+    padding: 8mm !important;
+    box-sizing: border-box !important;
+    visibility: visible !important;
+  }
+
+  .printable-labels-sheet * {
+    visibility: visible !important;
+  }
+
+  .printable-label-item {
+    background: #ffffff !important;
+    color: #000000 !important;
+    border: 1px dashed #666666 !important;
+    box-sizing: border-box !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+}

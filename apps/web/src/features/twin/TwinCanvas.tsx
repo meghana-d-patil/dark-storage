@@ -21,6 +21,7 @@ import { TwinPerfMonitor, QualitySetting, PerfMetrics } from './perf.js';
 import { hitTestBinBox } from './hitTest.js';
 import { flattenRoute, FlattenedRoute } from '../../lib/routeGeometry.js';
 import { StatusBadge } from '../../components/StatusBadge.js';
+import { LabelPrintModal } from '../../components/LabelPrintModal.js';
 
 export interface TwinCanvasProps {
   layout?: WarehouseLayoutResponse;
@@ -54,6 +55,7 @@ export const TwinCanvas: React.FC<TwinCanvasProps> = ({
   const [hoveredBoxIdx, setHoveredBoxIdx] = useState<number | null>(null);
   const [pinnedBoxIdx, setPinnedBoxIdx] = useState<number | null>(null);
   const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [printModalOpen, setPrintModalOpen] = useState(false);
 
   // Core persistent engines
   const cameraRef = useRef<TwinCamera | null>(null);
@@ -645,11 +647,32 @@ export const TwinCanvas: React.FC<TwinCanvasProps> = ({
               </div>
             )}
 
+            {pinnedBoxIdx !== null && (
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => setPrintModalOpen(true)}
+                style={{ marginTop: '8px', width: '100%', fontSize: '11px', padding: '3px 8px' }}
+              >
+                🏷️ Print Bin Label
+              </button>
+            )}
+
             <div style={{ marginTop: '6px', fontSize: '10px', color: 'var(--text-muted)', textAlign: 'right' }}>
               {pinnedBoxIdx !== null ? '📌 Pinned (click to release)' : 'Click to pin details'}
             </div>
           </div>
         </div>
+      )}
+
+      {/* Label Print Modal */}
+      {activeBoxMeta && (
+        <LabelPrintModal
+          isOpen={printModalOpen}
+          onClose={() => setPrintModalOpen(false)}
+          initialTab="bin"
+          initialValue={activeBoxMeta.binCode}
+        />
       )}
     </div>
   );

@@ -4,6 +4,7 @@ import { useWarehouseLayout, useMissionRoute, BinLayout } from '../hooks/useWare
 import { ProductLabel } from '../components/ProductLabel.js';
 import { MissionRouteSelector } from '../components/MissionRouteSelector.js';
 import { ViewErrorBoundary } from '../components/ViewErrorBoundary.js';
+import { LabelPrintModal } from '../components/LabelPrintModal.js';
 
 const FloorplanView = React.lazy(() => import('../features/floorplan/FloorplanView.js'));
 const TwinView = React.lazy(() => import('../features/twin/TwinView.js'));
@@ -17,6 +18,8 @@ export const WarehousePage: React.FC = () => {
   const [locateQuery, setLocateQuery] = useState('');
   const [hoveredBin, setHoveredBin] = useState<BinLayout | null>(null);
   const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(null);
+  const [printModalOpen, setPrintModalOpen] = useState(false);
+  const [printBinCode, setPrintBinCode] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
 
   const { data, isLoading } = useWarehouseLayout();
@@ -165,10 +168,23 @@ export const WarehousePage: React.FC = () => {
           />
         </div>
 
-        <MissionRouteSelector
-          selectedMission={selectedMission}
-          onSelectMission={setSelectedMission}
-        />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          <MissionRouteSelector
+            selectedMission={selectedMission}
+            onSelectMission={setSelectedMission}
+          />
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={() => {
+              setPrintBinCode('');
+              setPrintModalOpen(true);
+            }}
+            style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+          >
+            🏷️ Print Labels
+          </button>
+        </div>
       </div>
 
       {/* Mode 1: Cards View */}
@@ -308,8 +324,29 @@ export const WarehousePage: React.FC = () => {
           ) : (
             <div style={{ color: 'var(--text-muted)', marginTop: '6px' }}>Empty</div>
           )}
+          <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid var(--border-color)' }}>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={() => {
+                setPrintBinCode(hoveredBin.code);
+                setPrintModalOpen(true);
+              }}
+              style={{ width: '100%', fontSize: '11px', padding: '2px 6px' }}
+            >
+              🏷️ Print Bin Label
+            </button>
+          </div>
         </div>
       )}
+
+      {/* Label Print Modal */}
+      <LabelPrintModal
+        isOpen={printModalOpen}
+        onClose={() => setPrintModalOpen(false)}
+        initialTab="bin"
+        initialValue={printBinCode}
+      />
     </div>
   );
 };
