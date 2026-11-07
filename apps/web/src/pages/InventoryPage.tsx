@@ -184,8 +184,11 @@ export const InventoryPage: React.FC = () => {
       </div>
 
       {/* Tabs */}
-      <div className="tabs">
+      <div className="tabs" role="tablist" aria-label="Inventory sections">
         <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'summary'}
           className={`tab-btn ${activeTab === 'summary' ? 'active' : ''}`}
           onClick={() => setActiveTab('summary')}
           data-testid="inv-tab-summary"
@@ -193,6 +196,9 @@ export const InventoryPage: React.FC = () => {
           Summary
         </button>
         <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'bins'}
           className={`tab-btn ${activeTab === 'bins' ? 'active' : ''}`}
           onClick={() => setActiveTab('bins')}
           data-testid="inv-tab-bins"
@@ -200,6 +206,9 @@ export const InventoryPage: React.FC = () => {
           Bins
         </button>
         <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'ledger'}
           className={`tab-btn ${activeTab === 'ledger' ? 'active' : ''}`}
           onClick={() => setActiveTab('ledger')}
           data-testid="inv-tab-ledger"

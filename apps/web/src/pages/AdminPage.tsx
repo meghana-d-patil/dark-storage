@@ -140,8 +140,11 @@ export const AdminPage: React.FC = () => {
       </div>
 
       {/* Main Tab Navigation */}
-      <div className="tabs" style={{ marginBottom: 16 }}>
+      <div className="tabs" role="tablist" aria-label="Admin tabs" style={{ marginBottom: 16 }}>
         <button
+          type="button"
+          role="tab"
+          aria-selected={mainTab === 'overview'}
           className={`tab-btn ${mainTab === 'overview' ? 'active' : ''}`}
           onClick={() => setMainTab('overview')}
           data-testid="admin-tab-overview"
@@ -149,6 +152,9 @@ export const AdminPage: React.FC = () => {
           Overview &amp; Logs
         </button>
         <button
+          type="button"
+          role="tab"
+          aria-selected={mainTab === 'stresslab'}
           className={`tab-btn ${mainTab === 'stresslab' ? 'active' : ''}`}
           onClick={() => setMainTab('stresslab')}
           data-testid="admin-tab-stresslab"
@@ -159,8 +165,11 @@ export const AdminPage: React.FC = () => {
 
       {mainTab === 'overview' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div className="tabs" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: 4 }}>
+          <div className="tabs" role="tablist" aria-label="Overview subtabs" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: 4 }}>
             <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'audit'}
               className={`tab-btn ${activeTab === 'audit' ? 'active' : ''}`}
               onClick={() => setActiveTab('audit')}
               data-testid="tab-audit"
@@ -168,6 +177,9 @@ export const AdminPage: React.FC = () => {
               Audit Log
             </button>
             <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'integrity'}
               className={`tab-btn ${activeTab === 'integrity' ? 'active' : ''}`}
               onClick={() => setActiveTab('integrity')}
               data-testid="tab-integrity"

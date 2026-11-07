@@ -534,6 +534,10 @@ export const TwinCanvas: React.FC<TwinCanvasProps> = ({
       <canvas
         ref={canvasRef}
         data-testid="twin-canvas"
+        role="img"
+        aria-label={`3D Digital Twin warehouse view with 48 active racks, 192 bin locations, and ${
+          mission ? `active mission ${mission.ref} with ${mission.stops.length} stops` : 'no active route overlay'
+        }`}
         tabIndex={0}
         style={{
           display: 'block',
@@ -544,6 +548,38 @@ export const TwinCanvas: React.FC<TwinCanvasProps> = ({
           outline: 'none'
         }}
       />
+
+      {/* Visually Hidden Text Alternative for Accessibility */}
+      <div
+        className="sr-only"
+        style={{
+          position: 'absolute',
+          width: '1px',
+          height: '1px',
+          padding: 0,
+          margin: '-1px',
+          overflow: 'hidden',
+          clip: 'rect(0, 0, 0, 0)',
+          whiteSpace: 'nowrap',
+          border: 0
+        }}
+      >
+        <p>Interactive 3D isometric representation of Dark Storage Warehouse.</p>
+        <p>Layout: 4 aisles (A, B, C, D) with 48 shelves and 192 storage bins.</p>
+        {mission && (
+          <div>
+            <p>Active Mission: {mission.ref} ({mission.status})</p>
+            <p>Total Route Distance: {mission.route?.total_distance ? `${mission.route.total_distance.toFixed(1)} meters` : 'calculated'}</p>
+            <ol>
+              {mission.stops.map((s) => (
+                <li key={s.seq}>
+                  Stop {s.seq}: Bin {s.bin_code} ({s.shelf_code}), required: {s.qty_required} units, status: {s.status}
+                </li>
+              ))}
+            </ol>
+          </div>
+        )}
+      </div>
 
       {/* Floating 3D Tooltip Card (Matching Mode 1 Content) */}
       {activeBoxMeta && (

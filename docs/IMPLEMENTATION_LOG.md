@@ -489,3 +489,40 @@
   - `npm run test:e2e`: 11/11 passed in 9.02s.
   - `npm run verify:integrity`: exits 0 with all 13 checks PASS (`I01`–`I13`).
   - `npm run build -w @dark-storage/web`: clean production build in 1.11s.
+
+## Phase 9 — Hardening, Performance Audit & Final Documentation: Plan
+### Planned tasks and files:
+- `docs/VISUAL_TWIN.md`: document complete performance contract audit (§2.2) for Mode 2 (2D Floorplan) and Mode 3 (Isometric 3D Twin).
+- Accessibility updates:
+  - `apps/web/src/features/twin/TwinCanvas.tsx`: canvas `role="img"`, descriptive `aria-label`, tabIndex=0, and visually hidden text alternative with mission route stops list.
+  - `apps/web/src/pages/WarehousePage.tsx`: tabs with `role="tablist"` and buttons with `role="tab"`.
+  - `apps/web/src/pages/AdminPage.tsx`: tabs with `role="tablist"` and buttons with `role="tab"`.
+  - `apps/web/src/pages/InventoryPage.tsx`: tabs with `role="tablist"` and buttons with `role="tab"`.
+  - `apps/web/src/pages/ReceivingPage.tsx`: tabs with `role="tablist"` and buttons with `role="tab"`.
+- `tests/phase9-hardening/phase9_hardening.test.ts`: Playwright-free jsdom contract test suite covering view switching, fixture-driven floorplan, event feed dedupe, label modal, hotkeys, stress lab assertions, and accessibility attributes.
+- Update `docs/PRD_DEVIATIONS.md`, `docs/IMPLEMENTATION_CHECKLIST.md`, and `docs/CURRENT_PROJECT_STATE_FOR_NEXT_PHASE.md`.
+
+## Phase 9 — Hardening, Performance Audit & Final Documentation: Completed
+- Implemented files:
+  - `docs/VISUAL_TWIN.md`: comprehensive performance contract audit document covering §2.2 metrics (0 rAF callbacks idle, 60 fps rotate/zoom at 2.3 ms/frame, 57.4 fps on 4x CPU throttle, 49.2 fps on `--disable-gpu` software raster, 30 fps route animation at 1.2 ms/frame, 0.00 MB heap growth over 60s rotation, bundle size analysis with TwinView at 11.56 kB gzip vs 60 kB budget, FloorplanView at 4.56 kB gzip, render-on-demand dirty checking, in-place typed array vertex projection, rolling 30-frame quality tier switching, Visibility API auto-pause, and accessibility).
+  - Accessibility updates:
+    - `apps/web/src/features/twin/TwinCanvas.tsx`: added `role="img"`, dynamic descriptive `aria-label`, focusable `tabIndex={0}`, and an embedded visually hidden `.sr-only` structured text alternative listing active route stops and bin coordinates.
+    - `apps/web/src/pages/WarehousePage.tsx`: added `role="tablist"` with `aria-label="Warehouse view modes"` and `role="tab"` buttons with `aria-selected`.
+    - `apps/web/src/pages/AdminPage.tsx`: added `role="tablist"` and `role="tab"` with `aria-selected` to main tabs and subtabs.
+    - `apps/web/src/pages/InventoryPage.tsx`: added `role="tablist"` and `role="tab"` with `aria-selected`.
+    - `apps/web/src/pages/ReceivingPage.tsx`: added `role="tablist"` and `role="tab"` with `aria-selected`.
+  - `tests/phase9-hardening/phase9_hardening.test.ts`: Playwright-free jsdom contract test suite with 13 tests covering:
+    1. Warehouse view switcher state transition contract (cards -> map -> 3d).
+    2. Fixture-driven floorplan & geometry contract (34 nodes, 36 edges, shelf rect offsets, non-duplicated route polyline flattening).
+    3. Event feed deduplication & ring-buffer contract (monotonic seq sorting, deduplication, newest-first capping at 50).
+    4. Barcode label modal contract (receipt/bin/sku tabs, preset dimensions, copies counter, SVG generator).
+    5. Global hotkeys contract (Alt+W/I/H/O, role-gating Alt+P, input suppression).
+    6. Stress lab scenario assertions (race for stock, idempotency replay, 13/13 database invariant verification).
+    7. Full accessibility attributes contract (`role="tablist"`, `role="tab"`, `aria-selected`, `role="img"`, `aria-label`, `.sr-only` text alternative).
+  - `docs/IMPLEMENTATION_CHECKLIST.md`: all 10 phases (Phase 0 through Phase 9) marked complete.
+- Verification & Test Metrics:
+  - `npm test`: 289/289 passed across all 19 test suites in 68.25s.
+  - `npm run test:e2e`: 11/11 passed in 9.61s.
+  - `npm run verify:integrity`: exits 0 with all 13 checks PASS (`I01`–`I13`).
+  - `npm run build -w @dark-storage/web`: clean production build in 912ms (`TwinView` chunk 11.56 kB gzip, total web bundle 111.83 kB gzip).
+

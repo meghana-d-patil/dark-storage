@@ -275,8 +275,11 @@ export const ReceivingPage: React.FC = () => {
       </div>
 
       {/* Tabs */}
-      <div className="tabs">
+      <div className="tabs" role="tablist" aria-label="Receiving sections">
         <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'new'}
           className={`tab-btn ${activeTab === 'new' ? 'active' : ''}`}
           onClick={() => setActiveTab('new')}
           data-testid="tab-new-intake"
@@ -284,6 +287,9 @@ export const ReceivingPage: React.FC = () => {
           New Intake
         </button>
         <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'staged'}
           className={`tab-btn ${activeTab === 'staged' ? 'active' : ''}`}
           onClick={() => setActiveTab('staged')}
           data-testid="tab-staged-stock"
@@ -291,6 +297,9 @@ export const ReceivingPage: React.FC = () => {
           Staged Stock
         </button>
         <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'receipts'}
           className={`tab-btn ${activeTab === 'receipts' ? 'active' : ''}`}
           onClick={() => setActiveTab('receipts')}
           data-testid="tab-receipts"
@@ -298,6 +307,9 @@ export const ReceivingPage: React.FC = () => {
           Receipts
         </button>
         <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'putaways'}
           className={`tab-btn ${activeTab === 'putaways' ? 'active' : ''}`}
           onClick={() => setActiveTab('putaways')}
           data-testid="tab-putaways"

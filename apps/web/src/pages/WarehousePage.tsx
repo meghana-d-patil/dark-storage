@@ -106,7 +106,7 @@ export const WarehousePage: React.FC = () => {
         </div>
 
         {/* View Switcher Tabs */}
-        <div className="tabs" data-testid="view-switch" role="tablist">
+        <div className="tabs" data-testid="view-switch" role="tablist" aria-label="Warehouse view modes">
           <button
             type="button"
             role="tab"
