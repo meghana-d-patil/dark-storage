@@ -621,4 +621,107 @@ describe('Phase 10 — Realtime (WebSocket), Hardening, Resilience & Full E2E', 
     expect(mgrInteg.status).toBe(200);
     expect(mgrInteg.body.ok).toBe(true);
   });
+
+  it('P5-StressLab-Live: Stress Lab live scenarios (Race for Stock & Idempotency Replay) pass against full stack', async () => {
+    // 1. Pre-check integrity
+    const preInteg = await manager.get('/api/admin/integrity');
+    expect(preInteg.status).toBe(200);
+    expect(preInteg.body.ok).toBe(true);
+    expect(preInteg.body.checks.length).toBe(13);
+
+    // --- Scenario 1: Race for Stock (Engine 1 Mutex) ---
+    // Read inventory to find SKU with >= 4 available
+    const invRes = await manager.get('/api/inventory/summary');
+    expect(invRes.status).toBe(200);
+    const eligible = invRes.body.items.find(
+      (i: any) => (i.available_to_promise ?? (i.stored_qty - i.reserved_qty)) >= 4 && i.sku
+    );
+    expect(eligible).toBeDefined();
+
+    const testSku = eligible.sku;
+    const available = eligible.available_to_promise ?? (eligible.stored_qty - eligible.reserved_qty);
+    const orderQty = Math.floor(available / 2);
+
+    // Fire 5 parallel order requests
+    const racePromises = [];
+    for (let i = 1; i <= 5; i++) {
+      const idemKey = `e2e-race-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 6)}`;
+      racePromises.push(
+        manager.post('/api/orders', {
+          lines: [{ sku: testSku, qty: orderQty }]
+        }, {
+          headers: { 'Idempotency-Key': idemKey }
+        })
+      );
+    }
+
+    const raceResponses = await Promise.all(racePromises);
+    const successes = raceResponses.filter((r) => r.status === 201);
+    const failures = raceResponses.filter((r) => r.status === 409 && r.body.error?.code === 'INSUFFICIENT_STOCK');
+
+    expect(successes.length).toBe(2);
+    expect(failures.length).toBe(3);
+
+    // Check integrity mid-scenario
+    const midInteg = await manager.get('/api/admin/integrity');
+    expect(midInteg.status).toBe(200);
+    expect(midInteg.body.ok).toBe(true);
+
+    // Clean up created orders
+    for (const s of successes) {
+      const cancelRes = await manager.post(`/api/orders/${s.body.ref}/cancel`, {
+        reason: 'stress-lab cleanup'
+      });
+      expect(cancelRes.status).toBe(200);
+    }
+
+    // Post-cleanup integrity check
+    const postCleanupInteg = await manager.get('/api/admin/integrity');
+    expect(postCleanupInteg.status).toBe(200);
+    expect(postCleanupInteg.body.ok).toBe(true);
+
+    // --- Scenario 2: Idempotency Replay (Engine 3 Atomicity) ---
+    const testIdemKey = `e2e-idem-${Date.now()}`;
+    const initialOrderBody = { lines: [{ sku: testSku, qty: 1 }] };
+
+    // Fire 5 parallel requests with identical key
+    const idemPromises = [];
+    for (let i = 1; i <= 5; i++) {
+      idemPromises.push(
+        manager.post('/api/orders', initialOrderBody, {
+          headers: { 'Idempotency-Key': testIdemKey }
+        })
+      );
+    }
+
+    const parallelIdemRes = await Promise.all(idemPromises);
+    for (const r of parallelIdemRes) {
+      expect([200, 201]).toContain(r.status);
+    }
+
+    // 1 sequential replay with identical key and body
+    const seqIdemRes = await manager.post('/api/orders', initialOrderBody, {
+      headers: { 'Idempotency-Key': testIdemKey }
+    });
+    expect([200, 201]).toContain(seqIdemRes.status);
+
+    // All 6 requests must resolve to the identical order reference
+    const orderRefs = new Set([...parallelIdemRes, seqIdemRes].map((r) => r.body.ref));
+    expect(orderRefs.size).toBe(1);
+
+    // Reusing the same key with different payload throws 422 IDEMPOTENCY_KEY_REUSED
+    const mismatchedRes = await manager.post('/api/orders', {
+      lines: [{ sku: testSku, qty: 2 }] // Mismatched qty
+    }, {
+      headers: { 'Idempotency-Key': testIdemKey }
+    });
+
+    expect(mismatchedRes.status).toBe(422);
+    expect(mismatchedRes.body.error?.code).toBe('IDEMPOTENCY_KEY_REUSED');
+
+    // Final integrity verification
+    const finalInteg = await manager.get('/api/admin/integrity');
+    expect(finalInteg.status).toBe(200);
+    expect(finalInteg.body.ok).toBe(true);
+  });
 });

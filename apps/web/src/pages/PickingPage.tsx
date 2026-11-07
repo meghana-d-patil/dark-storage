@@ -33,13 +33,13 @@ export const PickingPage: React.FC = () => {
   const totalPages = Math.max(1, Math.ceil(total / 25));
 
   return (
-    <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <div className="m3-page">
+      <div className="m3-page-header">
         <div>
-          <h1 style={{ margin: 0, fontSize: '1.75rem', fontWeight: 600 }}>
+          <h1>
             {isPicker ? 'My Picking Missions' : 'Picking Missions'}
           </h1>
-          <p style={{ margin: '0.25rem 0 0', color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>
+          <p className="m3-subtitle">
             {isPicker
               ? 'View assigned picking missions and execute optimized pick routes'
               : 'Monitor warehouse picking routes, assignments, and mission progress'}
@@ -47,9 +47,9 @@ export const PickingPage: React.FC = () => {
         </div>
 
         {isManager && (
-          <div style={{ width: '180px' }}>
+          <div style={{ width: '200px' }}>
             <select
-              className="form-control"
+              className="select"
               value={statusFilter}
               onChange={(e) => {
                 setStatusFilter(e.target.value);
@@ -67,15 +67,17 @@ export const PickingPage: React.FC = () => {
       </div>
 
       {isLoading ? (
-        <div>Loading missions...</div>
+        <div className="card" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+          Loading missions...
+        </div>
       ) : missions.length === 0 ? (
-        <div style={{ padding: '3rem', textAlign: 'center', background: 'var(--color-bg-card)', borderRadius: '8px' }}>
-          <p style={{ color: 'var(--color-text-secondary)', margin: 0 }}>
+        <div className="card" style={{ padding: '3.5rem', textAlign: 'center' }}>
+          <p style={{ color: 'var(--text-secondary)', margin: 0, fontSize: '15px' }}>
             {isPicker ? 'No active picking missions assigned to you.' : 'No missions found.'}
           </p>
         </div>
       ) : (
-        <div style={{ background: 'var(--color-bg-card)', borderRadius: '8px', overflow: 'hidden' }}>
+        <div className="table-container">
           <table className="table">
             <thead>
               <tr>
@@ -93,16 +95,16 @@ export const PickingPage: React.FC = () => {
               {missions.map((m) => (
                 <tr key={m.id} data-testid={`mission-row-${m.ref}`}>
                   <td>
-                    <span style={{ fontWeight: 600, color: 'var(--color-primary)' }}>{m.ref}</span>
+                    <span style={{ fontWeight: 700, color: 'var(--accent-primary)', fontFamily: 'var(--font-mono)' }}>{m.ref}</span>
                   </td>
-                  <td>{m.order_ref}</td>
-                  {!isPicker && <td>{m.picker.name}</td>}
+                  <td><span style={{ fontFamily: 'var(--font-mono)' }}>{m.order_ref}</span></td>
+                  {!isPicker && <td style={{ fontWeight: 600 }}>{m.picker.name}</td>}
                   <td>
                     <span className="badge badge-info">{m.route.algorithm}</span>
                   </td>
-                  <td>{m.route.total_distance.toFixed(1)} u</td>
+                  <td style={{ fontFamily: 'var(--font-mono)' }}>{m.route.total_distance.toFixed(1)} u</td>
                   <td>
-                    {m.progress.finished_stops} / {m.progress.total_stops}
+                    <span style={{ fontWeight: 600 }}>{m.progress.finished_stops}</span> / {m.progress.total_stops}
                   </td>
                   <td>
                     <StatusBadge status={m.status} />
@@ -126,14 +128,15 @@ export const PickingPage: React.FC = () => {
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                padding: '0.75rem 1rem',
-                borderTop: '1px solid rgba(255,255,255,0.05)'
+                padding: '16px 20px',
+                borderTop: '1px solid var(--border-color)',
+                backgroundColor: 'var(--bg-surface)'
               }}
             >
-              <span style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>
+              <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
                 Page {page} of {totalPages} ({total} missions)
               </span>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                 <button
                   className="btn btn-secondary btn-sm"
                   onClick={() => setPage((p) => Math.max(1, p - 1))}

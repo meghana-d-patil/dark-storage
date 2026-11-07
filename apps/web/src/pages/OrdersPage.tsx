@@ -36,11 +36,11 @@ export const OrdersPage: React.FC = () => {
   const totalPages = Math.max(1, Math.ceil(total / 25));
 
   return (
-    <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <div className="m3-page">
+      <div className="m3-page-header">
         <div>
-          <h1 style={{ margin: 0, fontSize: '1.75rem', fontWeight: 600 }}>Outbound Orders</h1>
-          <p style={{ margin: '0.25rem 0 0', color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>
+          <h1>Outbound Orders</h1>
+          <p className="m3-subtitle">
             Manage customer, transfer, and production orders with atomic stock reservations
           </p>
         </div>
@@ -55,21 +55,12 @@ export const OrdersPage: React.FC = () => {
         )}
       </div>
 
-      {/* Filters */}
-      <div
-        style={{
-          display: 'flex',
-          gap: '1rem',
-          flexWrap: 'wrap',
-          background: 'var(--color-bg-card)',
-          padding: '1rem',
-          borderRadius: '8px'
-        }}
-      >
-        <div style={{ flex: '1 1 200px' }}>
+      {/* Filters Toolbar */}
+      <div className="m3-toolbar">
+        <div style={{ flex: '1 1 240px' }}>
           <input
             type="text"
-            className="form-control"
+            className="input-field"
             placeholder="Search ref, customer, SKU, name..."
             value={search}
             onChange={(e) => {
@@ -79,9 +70,9 @@ export const OrdersPage: React.FC = () => {
           />
         </div>
 
-        <div style={{ width: '160px' }}>
+        <div style={{ width: '220px' }}>
           <select
-            className="form-control"
+            className="select"
             value={status}
             onChange={(e) => {
               setStatus(e.target.value);
@@ -98,9 +89,9 @@ export const OrdersPage: React.FC = () => {
           </select>
         </div>
 
-        <div style={{ width: '160px' }}>
+        <div style={{ width: '180px' }}>
           <select
-            className="form-control"
+            className="select"
             value={priority}
             onChange={(e) => {
               setPriority(e.target.value);
@@ -117,8 +108,8 @@ export const OrdersPage: React.FC = () => {
       </div>
 
       {/* Orders Table */}
-      <div style={{ background: 'var(--color-bg-card)', borderRadius: '8px', overflow: 'hidden' }}>
-        <table className="table" style={{ margin: 0 }}>
+      <div className="table-container">
+        <table className="table">
           <thead>
             <tr>
               <th>Order Ref</th>
@@ -134,13 +125,13 @@ export const OrdersPage: React.FC = () => {
           <tbody>
             {isLoading ? (
               <tr>
-                <td colSpan={8} style={{ textAlign: 'center', padding: '2rem' }}>
+                <td colSpan={8} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
                   Loading orders...
                 </td>
               </tr>
             ) : orders.length === 0 ? (
               <tr>
-                <td colSpan={8} style={{ textAlign: 'center', padding: '2rem', color: 'var(--color-text-secondary)' }}>
+                <td colSpan={8} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
                   No orders found
                 </td>
               </tr>
@@ -153,8 +144,8 @@ export const OrdersPage: React.FC = () => {
                     onClick={() => navigate(`/orders/${o.ref}`)}
                     style={{ cursor: 'pointer' }}
                   >
-                    <td style={{ fontWeight: 600, color: 'var(--color-primary)' }}>{o.ref}</td>
-                    <td>{o.order_type}</td>
+                    <td><span style={{ fontWeight: 700, color: 'var(--accent-primary)', fontFamily: 'var(--font-mono)' }}>{o.ref}</span></td>
+                    <td><span className="badge badge-secondary">{o.order_type}</span></td>
                     <td>
                       <span className={`badge badge-${o.priority === 'URGENT' ? 'danger' : o.priority === 'HIGH' ? 'warning' : 'secondary'}`}>
                         {o.priority}
@@ -163,12 +154,12 @@ export const OrdersPage: React.FC = () => {
                     <td>
                       <StatusBadge status={o.status} />
                     </td>
-                    <td>{o.customer_ref || '—'}</td>
+                    <td style={{ fontWeight: 500 }}>{o.customer_ref || '—'}</td>
                     <td>
                       {o.lines.length} lines ({totalUnits} units)
                     </td>
                     <td>{typeof o.assigned_picker === 'object' && o.assigned_picker ? (o.assigned_picker as any).name : o.assigned_picker || '—'}</td>
-                    <td style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>
+                    <td style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
                       {new Date(o.created_at).toLocaleString()}
                     </td>
                   </tr>
@@ -185,26 +176,27 @@ export const OrdersPage: React.FC = () => {
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
-              padding: '1rem',
-              borderTop: '1px solid var(--color-border)'
+              padding: '16px 20px',
+              borderTop: '1px solid var(--border-color)',
+              backgroundColor: 'var(--bg-surface)'
             }}
           >
-            <span style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>
+            <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
               Showing {orders.length} of {total} orders
             </span>
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
               <button
-                className="btn btn-secondary"
+                className="btn btn-secondary btn-sm"
                 disabled={page <= 1}
                 onClick={() => setPage((p) => p - 1)}
               >
                 Previous
               </button>
-              <span style={{ alignSelf: 'center', padding: '0 0.5rem', fontSize: '0.875rem' }}>
+              <span style={{ padding: '0 8px', fontSize: '13px', color: 'var(--text-secondary)' }}>
                 Page {page} of {totalPages}
               </span>
               <button
-                className="btn btn-secondary"
+                className="btn btn-secondary btn-sm"
                 disabled={page >= totalPages}
                 onClick={() => setPage((p) => p + 1)}
               >

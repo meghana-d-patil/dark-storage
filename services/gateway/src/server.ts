@@ -28,6 +28,18 @@ export function createApp(): Express {
   const app = express();
 
   app.use(requestIdMiddleware);
+  app.use((req, res, next) => {
+    const start = performance.now();
+    const origSend = res.send;
+    res.send = function (body?: any) {
+      if (!res.headersSent) {
+        const dur = (performance.now() - start).toFixed(1);
+        res.setHeader('Server-Timing', `gw;dur=${dur}`);
+      }
+      return origSend.call(this, body);
+    };
+    next();
+  });
   app.use(cors());
   app.use(express.json({ limit: '1mb' }));
 

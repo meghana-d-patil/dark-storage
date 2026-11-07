@@ -123,10 +123,18 @@ export const ReceivingPage: React.FC = () => {
   const [selectedLineForAlloc, setSelectedLineForAlloc] = useState<StagedLineItem | null>(null);
 
   // Queries
+  const cleanedSearch = React.useMemo(() => {
+    const raw = productSearch.trim();
+    if (!raw) return '';
+    const skuMatch = raw.match(/\b(SKU\d{3,})\b/i);
+    if (skuMatch) return skuMatch[1];
+    return raw.split(/[-–—(]/)[0].trim();
+  }, [productSearch]);
+
   const { data: searchProducts } = useQuery<{ items: ProductItem[] }>({
-    queryKey: ['products', 'search', productSearch],
-    queryFn: () => apiFetch(`/api/products?search=${encodeURIComponent(productSearch)}&limit=10`),
-    enabled: productSearch.trim().length > 0
+    queryKey: ['products', 'search', cleanedSearch],
+    queryFn: () => apiFetch(`/api/products?search=${encodeURIComponent(cleanedSearch)}&limit=10`),
+    enabled: cleanedSearch.length > 0
   });
 
   const { data: stagedLines, isLoading: stagedLoading } = useQuery<StagedLineItem[]>({
@@ -196,8 +204,20 @@ export const ReceivingPage: React.FC = () => {
 
   const handleAddLine = () => {
     setFormError(null);
-    if (!selectedProduct) {
-      setFormError('Pick a product');
+    let prod = selectedProduct;
+    if (!prod && searchProducts?.items && searchProducts.items.length > 0) {
+      const raw = productSearch.trim();
+      const skuMatch = raw.match(/\b(SKU\d{3,})\b/i);
+      if (skuMatch) {
+        prod = searchProducts.items.find((p) => p.sku.toUpperCase() === skuMatch[1].toUpperCase()) || null;
+      }
+      if (!prod && searchProducts.items.length === 1) {
+        prod = searchProducts.items[0];
+      }
+    }
+
+    if (!prod) {
+      setFormError('Pick a product from the dropdown list (e.g. search "SKU001" or "Mouse" and click it)');
       return;
     }
 
@@ -207,12 +227,12 @@ export const ReceivingPage: React.FC = () => {
       return;
     }
 
-    if (qty > selectedProduct.max_receive_qty) {
-      setFormError(`Quantity exceeds the limit of ${selectedProduct.max_receive_qty} for ${selectedProduct.name}`);
+    if (qty > prod.max_receive_qty) {
+      setFormError(`Quantity exceeds the limit of ${prod.max_receive_qty} for ${prod.name}`);
       return;
     }
 
-    if (lines.some((l) => l.sku.toUpperCase() === selectedProduct.sku.toUpperCase())) {
+    if (lines.some((l) => l.sku.toUpperCase() === prod!.sku.toUpperCase())) {
       setFormError('Already added — edit its quantity instead');
       return;
     }
@@ -220,11 +240,11 @@ export const ReceivingPage: React.FC = () => {
     setLines([
       ...lines,
       {
-        sku: selectedProduct.sku,
-        name: selectedProduct.name,
-        category: selectedProduct.category,
-        storage_class: selectedProduct.storage_class,
-        max_receive_qty: selectedProduct.max_receive_qty,
+        sku: prod.sku,
+        name: prod.name,
+        category: prod.category,
+        storage_class: prod.storage_class,
+        max_receive_qty: prod.max_receive_qty,
         qty
       }
     ]);
@@ -241,8 +261,13 @@ export const ReceivingPage: React.FC = () => {
   const totalUnits = lines.reduce((acc, l) => acc + l.qty, 0);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      <h2>Receiving & Intake</h2>
+    <div className="m3-page">
+      <div className="m3-page-header">
+        <div>
+          <h1>Receiving & Intake</h1>
+          <p className="m3-subtitle">Inbound shipments, staged stock management, and directed putaway workflows</p>
+        </div>
+      </div>
 
       {/* Tabs */}
       <div className="tabs">

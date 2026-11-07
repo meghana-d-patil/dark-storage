@@ -169,8 +169,13 @@ export const InventoryPage: React.FC = () => {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      <h2>Inventory Management</h2>
+    <div className="m3-page">
+      <div className="m3-page-header">
+        <div>
+          <h1>Inventory Management</h1>
+          <p className="m3-subtitle">Real-time stock balance, bin capacity inspection, recount, and relocation</p>
+        </div>
+      </div>
 
       {/* Tabs */}
       <div className="tabs">

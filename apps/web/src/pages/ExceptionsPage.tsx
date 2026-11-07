@@ -96,32 +96,23 @@ export const ExceptionsPage: React.FC = () => {
   };
 
   return (
-    <div style={{ padding: '1.5rem', maxWidth: '1200px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <div className="m3-page">
+      <div className="m3-page-header">
         <div>
-          <h1 style={{ margin: 0, fontSize: '1.75rem', fontWeight: 600 }}>Pick Exceptions</h1>
-          <p style={{ margin: '0.25rem 0 0', color: 'var(--color-text-secondary)', fontSize: '0.9rem' }}>
+          <h1>Pick Exceptions</h1>
+          <p className="m3-subtitle">
             Review and resolve picking problems, missing stock, and damaged items.
           </p>
         </div>
       </div>
 
       {/* Filter Bar */}
-      <div
-        style={{
-          display: 'flex',
-          gap: '1rem',
-          alignItems: 'center',
-          background: 'var(--color-bg-card)',
-          padding: '1rem',
-          borderRadius: '8px',
-          flexWrap: 'wrap'
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <label style={{ fontSize: '0.85rem', fontWeight: 500 }}>Status:</label>
+      <div className="m3-toolbar">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <label className="form-label" style={{ margin: 0 }}>Status:</label>
           <select
-            className="form-control"
+            className="select"
+            style={{ width: '160px' }}
             value={statusFilter}
             onChange={(e: any) => {
               setStatusFilter(e.target.value);
@@ -135,11 +126,11 @@ export const ExceptionsPage: React.FC = () => {
           </select>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <label style={{ fontSize: '0.85rem', fontWeight: 500 }}>Mission:</label>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: '1 1 240px' }}>
+          <label className="form-label" style={{ margin: 0 }}>Mission:</label>
           <input
             type="text"
-            className="form-control"
+            className="input-field"
             placeholder="Search mission ref..."
             value={missionFilter}
             onChange={(e) => {
@@ -150,13 +141,13 @@ export const ExceptionsPage: React.FC = () => {
           />
         </div>
 
-        <div style={{ marginLeft: 'auto', fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>
-          Total Exceptions: <strong>{total}</strong>
+        <div style={{ marginLeft: 'auto', fontSize: '13px', color: 'var(--text-secondary)' }}>
+          Total Exceptions: <strong style={{ color: 'var(--text-primary)' }}>{total}</strong>
         </div>
       </div>
 
       {/* Exceptions Table */}
-      <div style={{ background: 'var(--color-bg-card)', borderRadius: '8px', overflow: 'hidden' }}>
+      <div className="table-container">
         <table className="table">
           <thead>
             <tr>
@@ -175,13 +166,13 @@ export const ExceptionsPage: React.FC = () => {
           <tbody>
             {isLoading ? (
               <tr>
-                <td colSpan={10} style={{ textAlign: 'center', padding: '2rem' }}>
+                <td colSpan={10} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
                   Loading exceptions...
                 </td>
               </tr>
             ) : exceptions.length === 0 ? (
               <tr>
-                <td colSpan={10} style={{ textAlign: 'center', padding: '2rem', color: 'var(--color-text-secondary)' }}>
+                <td colSpan={10} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
                   No exceptions matching criteria.
                 </td>
               </tr>
@@ -189,7 +180,7 @@ export const ExceptionsPage: React.FC = () => {
               exceptions.map((exc) => (
                 <tr key={exc.id} data-testid={`exc-row-${exc.ref}`}>
                   <td>
-                    <span style={{ fontWeight: 600, color: 'var(--color-primary)' }}>{exc.ref}</span>
+                    <span style={{ fontWeight: 700, color: 'var(--accent-primary)', fontFamily: 'var(--font-mono)' }}>{exc.ref}</span>
                   </td>
                   <td>
                     <StatusBadge status={exc.status} />
@@ -199,22 +190,22 @@ export const ExceptionsPage: React.FC = () => {
                   </td>
                   <td>
                     <div>
-                      <Link to={`/picking/${exc.mission_ref}`} style={{ color: 'var(--color-primary)', textDecoration: 'underline' }}>
+                      <Link to={`/picking/${exc.mission_ref}`} style={{ color: 'var(--accent-primary)', fontFamily: 'var(--font-mono)' }}>
                         {exc.mission_ref}
                       </Link>
                     </div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
-                      <Link to={`/orders/${exc.order_ref}`} style={{ color: 'inherit' }}>
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                      <Link to={`/orders/${exc.order_ref}`} style={{ color: 'inherit', fontFamily: 'var(--font-mono)' }}>
                         {exc.order_ref}
                       </Link>
                     </div>
                   </td>
                   <td>
-                    <strong>{exc.bin_code}</strong>
+                    <strong style={{ fontFamily: 'var(--font-mono)' }}>{exc.bin_code}</strong>
                   </td>
                   <td>
-                    <div>{exc.product_name || exc.sku}</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', fontFamily: 'monospace' }}>
+                    <div style={{ fontWeight: 600 }}>{exc.product_name || exc.sku}</div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
                       {exc.sku}
                     </div>
                   </td>
@@ -223,14 +214,14 @@ export const ExceptionsPage: React.FC = () => {
                       Req: <strong>{exc.expected_qty}</strong> | Picked: <strong>{exc.actual_qty}</strong>
                     </div>
                     {exc.notes && (
-                      <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', fontStyle: 'italic', marginTop: '0.2rem' }}>
+                      <div style={{ fontSize: '12px', color: 'var(--text-secondary)', fontStyle: 'italic', marginTop: '4px' }}>
                         "{exc.notes}"
                       </div>
                     )}
                   </td>
                   <td>
                     <div>{exc.reported_by?.name || `User #${exc.reported_by?.id || exc.reported_by}`}</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
                       {new Date(exc.reported_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </div>
                   </td>
@@ -239,13 +230,13 @@ export const ExceptionsPage: React.FC = () => {
                       <div>
                         <span className="badge badge-info">{exc.resolution}</span>
                         {exc.resolution_notes && (
-                          <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
+                          <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
                             {exc.resolution_notes}
                           </div>
                         )}
                       </div>
                     ) : (
-                      <span style={{ color: 'var(--color-text-secondary)', fontSize: '0.85rem' }}>—</span>
+                      <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>—</span>
                     )}
                   </td>
                   {isManager && (
@@ -259,7 +250,7 @@ export const ExceptionsPage: React.FC = () => {
                           Resolve
                         </button>
                       ) : (
-                        <span style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>Done</span>
+                        <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Done</span>
                       )}
                     </td>
                   )}
@@ -271,7 +262,7 @@ export const ExceptionsPage: React.FC = () => {
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem', padding: '1rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', padding: '16px 20px', borderTop: '1px solid var(--border-color)', backgroundColor: 'var(--bg-surface)' }}>
             <button
               className="btn btn-secondary btn-sm"
               disabled={page <= 1}
@@ -279,7 +270,7 @@ export const ExceptionsPage: React.FC = () => {
             >
               Prev
             </button>
-            <span style={{ alignSelf: 'center', fontSize: '0.85rem' }}>
+            <span style={{ alignSelf: 'center', fontSize: '13px', color: 'var(--text-secondary)', padding: '0 8px' }}>
               Page {page} of {totalPages}
             </span>
             <button
@@ -296,11 +287,11 @@ export const ExceptionsPage: React.FC = () => {
       {/* Resolve Dialog Modal */}
       {selectedExc && (
         <div className="modal-backdrop">
-          <div className="modal-content" style={{ maxWidth: '560px' }}>
-            <h3 style={{ margin: '0 0 1rem', fontSize: '1.25rem' }}>Resolve Exception {selectedExc.ref}</h3>
+          <div className="modal-content" style={{ maxWidth: '580px' }}>
+            <h3 style={{ margin: '0 0 16px', fontSize: '1.25rem', fontWeight: 800 }}>Resolve Exception <span style={{ fontFamily: 'var(--font-mono)' }}>{selectedExc.ref}</span></h3>
 
             {resolveError && (
-              <div className="banner banner-error" style={{ padding: '0.75rem', marginBottom: '1rem', borderRadius: '4px' }}>
+              <div className="banner banner-error" style={{ marginBottom: '16px' }}>
                 {resolveError}
               </div>
             )}
@@ -308,65 +299,66 @@ export const ExceptionsPage: React.FC = () => {
             {/* Facts Card */}
             <div
               style={{
-                background: 'rgba(255,255,255,0.03)',
-                borderRadius: '6px',
-                padding: '1rem',
-                marginBottom: '1rem',
+                backgroundColor: 'var(--bg-surface)',
+                border: '1px solid var(--border-color)',
+                borderRadius: 'var(--radius-md)',
+                padding: '16px',
+                marginBottom: '18px',
                 display: 'grid',
                 gridTemplateColumns: '1fr 1fr',
-                gap: '0.75rem',
-                fontSize: '0.85rem'
+                gap: '12px',
+                fontSize: '13px'
               }}
             >
               <div>
-                <span style={{ color: 'var(--color-text-secondary)' }}>Mission / Order:</span>
+                <span style={{ color: 'var(--text-muted)' }}>Mission / Order:</span>
                 <div>
-                  <strong>{selectedExc.mission_ref}</strong> / {selectedExc.order_ref}
+                  <strong style={{ fontFamily: 'var(--font-mono)' }}>{selectedExc.mission_ref}</strong> / <span style={{ fontFamily: 'var(--font-mono)' }}>{selectedExc.order_ref}</span>
                 </div>
               </div>
               <div>
-                <span style={{ color: 'var(--color-text-secondary)' }}>Stop Ref:</span>
-                <div>{selectedExc.stop_ref}</div>
+                <span style={{ color: 'var(--text-muted)' }}>Stop Ref:</span>
+                <div style={{ fontFamily: 'var(--font-mono)' }}>{selectedExc.stop_ref}</div>
               </div>
               <div>
-                <span style={{ color: 'var(--color-text-secondary)' }}>Location / Bin:</span>
+                <span style={{ color: 'var(--text-muted)' }}>Location / Bin:</span>
                 <div>
-                  <strong>{selectedExc.bin_code}</strong>
+                  <strong style={{ fontFamily: 'var(--font-mono)' }}>{selectedExc.bin_code}</strong>
                 </div>
               </div>
               <div>
-                <span style={{ color: 'var(--color-text-secondary)' }}>Product (SKU):</span>
+                <span style={{ color: 'var(--text-muted)' }}>Product (SKU):</span>
                 <div>
-                  {selectedExc.product_name} ({selectedExc.sku})
+                  {selectedExc.product_name} (<span style={{ fontFamily: 'var(--font-mono)' }}>{selectedExc.sku}</span>)
                 </div>
               </div>
               <div>
-                <span style={{ color: 'var(--color-text-secondary)' }}>Problem Type:</span>
+                <span style={{ color: 'var(--text-muted)' }}>Problem Type:</span>
                 <div>
                   <span className="badge badge-warning">{selectedExc.type}</span>
                 </div>
               </div>
               <div>
-                <span style={{ color: 'var(--color-text-secondary)' }}>Quantities:</span>
+                <span style={{ color: 'var(--text-muted)' }}>Quantities:</span>
                 <div>
-                  Expected: {selectedExc.expected_qty} | Picked: {selectedExc.actual_qty}
+                  Expected: <strong>{selectedExc.expected_qty}</strong> | Picked: <strong>{selectedExc.actual_qty}</strong>
                 </div>
               </div>
               {selectedExc.notes && (
                 <div style={{ gridColumn: 'span 2' }}>
-                  <span style={{ color: 'var(--color-text-secondary)' }}>Picker Notes:</span>
-                  <div style={{ fontStyle: 'italic' }}>"{selectedExc.notes}"</div>
+                  <span style={{ color: 'var(--text-muted)' }}>Picker Notes:</span>
+                  <div style={{ fontStyle: 'italic', marginTop: '2px' }}>"{selectedExc.notes}"</div>
                 </div>
               )}
             </div>
 
             {/* Form Inputs */}
-            <div style={{ marginBottom: '1rem' }}>
-              <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.25rem', fontWeight: 500 }}>
+            <div className="form-group">
+              <label className="form-label">
                 Resolution Notes
               </label>
               <textarea
-                className="form-control"
+                className="input-field"
                 rows={2}
                 data-testid="resolve-notes-input"
                 placeholder="Details of manager inspection..."
@@ -375,26 +367,26 @@ export const ExceptionsPage: React.FC = () => {
               />
             </div>
 
-            <div style={{ marginBottom: '1.25rem' }}>
-              <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.25rem', fontWeight: 500 }}>
+            <div className="form-group" style={{ marginBottom: '24px' }}>
+              <label className="form-label">
                 Physical Count of Bin (Optional Recount)
               </label>
               <input
                 type="number"
-                className="form-control"
+                className="input-field"
                 data-testid="exc-resolve-recount"
                 placeholder="e.g. 0 if bin is truly empty"
                 value={recountQty}
                 onChange={(e) => setRecountQty(e.target.value)}
                 min={0}
               />
-              <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', display: 'block', marginTop: '0.25rem' }}>
+              <span style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginTop: '6px' }}>
                 Providing a count clears the bin's quarantine recount flag and adjusts inventory.
               </span>
             </div>
 
             {/* Action Buttons */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', flexWrap: 'wrap' }}>
               <button
                 type="button"
                 className="btn btn-secondary"

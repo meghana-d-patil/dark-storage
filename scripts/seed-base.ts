@@ -13,11 +13,11 @@ export function seedBase(db: Database.Database): void {
   const tx = db.transaction(() => {
     // 1. Users
     const users = [
-      { username: 'manager1', display_name: 'Maya Manager', role: 'MANAGER' },
-      { username: 'operator1', display_name: 'Omar Operator', role: 'OPERATOR' },
-      { username: 'picker1', display_name: 'Priya Picker', role: 'PICKER' },
-      { username: 'picker2', display_name: 'Pablo Picker', role: 'PICKER' },
-      { username: 'staff1', display_name: 'Sana Staff', role: 'STAFF' }
+      { username: 'manager1', display_name: 'Manager', role: 'MANAGER' },
+      { username: 'operator1', display_name: 'Operator', role: 'OPERATOR' },
+      { username: 'picker1', display_name: 'Picker', role: 'PICKER' },
+      { username: 'picker2', display_name: 'Picker 2', role: 'PICKER' },
+      { username: 'staff1', display_name: 'Staff', role: 'STAFF' }
     ];
 
     const insertUser = db.prepare(`

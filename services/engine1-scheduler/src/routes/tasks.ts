@@ -50,6 +50,17 @@ function formatTaskDto(task: TaskRecord) {
   };
 }
 
+function canonicalJson(obj: unknown): string {
+  if (obj === null || typeof obj !== 'object') {
+    return JSON.stringify(obj);
+  }
+  if (Array.isArray(obj)) {
+    return '[' + obj.map(canonicalJson).join(',') + ']';
+  }
+  const keys = Object.keys(obj as Record<string, unknown>).sort();
+  return '{' + keys.map(k => JSON.stringify(k) + ':' + canonicalJson((obj as Record<string, unknown>)[k])).join(',') + '}';
+}
+
 tasksRouter.post('/internal/v1/tasks', (req: Request, res: Response) => {
   const parsed = createTaskSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -67,6 +78,22 @@ tasksRouter.post('/internal/v1/tasks', (req: Request, res: Response) => {
   // Check if idempotency_key already exists
   const existing = db.prepare('SELECT * FROM tasks WHERE idempotency_key = ?').get(idempotency_key) as TaskRecord | undefined;
   if (existing) {
+    try {
+      const existingPayload = JSON.parse(existing.payload_json);
+      if (canonicalJson(existingPayload) !== canonicalJson(payload)) {
+        res.status(422).json({
+          code: 'IDEMPOTENCY_KEY_REUSED',
+          message: 'Idempotency key reused with different request payload',
+          error: {
+            code: 'IDEMPOTENCY_KEY_REUSED',
+            message: 'Idempotency key reused with different request payload'
+          }
+        });
+        return;
+      }
+    } catch {
+      // ignore
+    }
     res.status(200).json(formatTaskDto(existing));
     return;
   }

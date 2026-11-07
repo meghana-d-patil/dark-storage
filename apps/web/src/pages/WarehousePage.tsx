@@ -1,51 +1,50 @@
-import React, { useState, useRef } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { apiFetch } from '../api/client.js';
+import React, { useState, useRef, Suspense } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { useWarehouseLayout, useMissionRoute, BinLayout } from '../hooks/useWarehouseData.js';
 import { ProductLabel } from '../components/ProductLabel.js';
+import { MissionRouteSelector } from '../components/MissionRouteSelector.js';
+import { ViewErrorBoundary } from '../components/ViewErrorBoundary.js';
 
-interface BinLayout {
-  code: string;
-  level: number;
-  capacity: number;
-  status: string;
-  recount_required: boolean;
-  sku: string | null;
-  product_name: string | null;
-  qty: number;
-  reserved_qty: number;
-}
-
-interface ShelfLayout {
-  code: string;
-  bay: number;
-  side: string;
-  status: string;
-  storage_class: string;
-  x: number;
-  y: number;
-  bins: BinLayout[];
-}
-
-interface AisleLayout {
-  aisle: string;
-  shelves: ShelfLayout[];
-}
-
-interface WarehouseLayoutResponse {
-  aisles: AisleLayout[];
-}
+const FloorplanView = React.lazy(() => import('../features/floorplan/FloorplanView.js'));
+const TwinView = React.lazy(() => import('../features/twin/TwinView.js'));
 
 export const WarehousePage: React.FC = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const rawView = searchParams.get('view');
+  const viewMode: 'cards' | 'map' | '3d' = rawView === 'map' || rawView === '3d' ? rawView : 'cards';
+  const selectedMission = searchParams.get('mission') || '';
+
   const [locateQuery, setLocateQuery] = useState('');
   const [hoveredBin, setHoveredBin] = useState<BinLayout | null>(null);
   const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const { data, isLoading } = useQuery<WarehouseLayoutResponse>({
-    queryKey: ['warehouse', 'layout'],
-    queryFn: () => apiFetch('/api/warehouse/layout'),
-    refetchOnWindowFocus: true
-  });
+  const { data, isLoading } = useWarehouseLayout();
+  const { data: missionRoute } = useMissionRoute(selectedMission);
+
+  const setViewMode = (mode: 'cards' | 'map' | '3d') => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (mode === 'cards') {
+        next.delete('view');
+      } else {
+        next.set('view', mode);
+      }
+      return next;
+    });
+  };
+
+  const setSelectedMission = (ref: string) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (!ref) {
+        next.delete('mission');
+      } else {
+        next.set('mission', ref);
+      }
+      return next;
+    });
+  };
 
   const getFillClass = (qty: number, cap: number) => {
     if (qty === 0) return 'fill-empty';
@@ -96,14 +95,68 @@ export const WarehousePage: React.FC = () => {
   };
 
   return (
-    <div className="warehouse-container" ref={containerRef}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
-        <h2>Warehouse 2D Layout</h2>
-        <div className="warehouse-controls">
+    <div className="warehouse-container m3-page" ref={containerRef}>
+      <div className="m3-page-header" style={{ marginBottom: '1.25rem' }}>
+        <div>
+          <h1 style={{ marginBottom: '4px' }}>Warehouse Topology & Digital Twin</h1>
+          <p className="m3-subtitle" style={{ margin: 0 }}>Interactive visual topology, occupancy levels, and real-time routes</p>
+        </div>
+
+        {/* View Switcher Tabs */}
+        <div className="tabs" data-testid="view-switch" role="tablist">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={viewMode === 'cards'}
+            className={`tab-btn ${viewMode === 'cards' ? 'active' : ''}`}
+            onClick={() => setViewMode('cards')}
+            data-testid="view-tab-cards"
+          >
+            Cards
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={viewMode === 'map'}
+            className={`tab-btn ${viewMode === 'map' ? 'active' : ''}`}
+            onClick={() => setViewMode('map')}
+            data-testid="view-tab-map"
+          >
+            Floorplan
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={viewMode === '3d'}
+            className={`tab-btn ${viewMode === '3d' ? 'active' : ''}`}
+            onClick={() => setViewMode('3d')}
+            data-testid="view-tab-3d"
+          >
+            3D Twin
+          </button>
+        </div>
+      </div>
+
+      {/* Control Bar: Search + Mission Route Selector */}
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: '16px',
+          flexWrap: 'wrap',
+          marginBottom: '1.25rem',
+          backgroundColor: 'var(--bg-secondary)',
+          padding: '12px 16px',
+          borderRadius: 'var(--radius-md)',
+          border: '1px solid var(--border-color)'
+        }}
+      >
+        <div style={{ flex: '1 1 300px', maxWidth: '400px' }}>
           <input
             type="text"
-            className="input"
-            style={{ width: 280 }}
+            className="input-field"
+            style={{ width: '100%' }}
             placeholder="Locate bin, shelf, SKU, or name..."
             value={locateQuery}
             onChange={(e) => setLocateQuery(e.target.value)}
@@ -111,75 +164,119 @@ export const WarehousePage: React.FC = () => {
             data-testid="warehouse-locate-input"
           />
         </div>
+
+        <MissionRouteSelector
+          selectedMission={selectedMission}
+          onSelectMission={setSelectedMission}
+        />
       </div>
 
-      {/* Legend */}
-      <div className="warehouse-legend">
-        <strong>Legend:</strong>
-        <div className="legend-item"><div className="legend-box fill-empty" /> Empty (0%)</div>
-        <div className="legend-item"><div className="legend-box fill-low" /> Low (&lt;25%)</div>
-        <div className="legend-item"><div className="legend-box fill-med" /> Medium (&lt;75%)</div>
-        <div className="legend-item"><div className="legend-box fill-high" /> High (&lt;100%)</div>
-        <div className="legend-item"><div className="legend-box fill-full" /> Full (100%)</div>
-        <div className="legend-item"><div className="legend-box status-blocked" /> Blocked</div>
-        <div className="legend-item"><div className="legend-box status-damaged" /> Damaged</div>
-        <div className="legend-item"><div className="legend-box status-maintenance" /> Shelf Maint.</div>
-        <div className="legend-item"><div className="legend-box status-recount" /> Recount Req.</div>
-      </div>
+      {/* Mode 1: Cards View */}
+      {viewMode === 'cards' && (
+        <>
+          {/* Legend */}
+          <div className="warehouse-legend">
+            <strong style={{ color: 'var(--text-primary)' }}>Legend:</strong>
+            <div className="legend-item"><div className="legend-box fill-empty" /> Empty (0%)</div>
+            <div className="legend-item"><div className="legend-box fill-low" /> Low (&lt;25%)</div>
+            <div className="legend-item"><div className="legend-box fill-med" /> Medium (&lt;75%)</div>
+            <div className="legend-item"><div className="legend-box fill-high" /> High (&lt;100%)</div>
+            <div className="legend-item"><div className="legend-box fill-full" /> Full (100%)</div>
+            <div className="legend-item"><div className="legend-box status-blocked" /> Blocked</div>
+            <div className="legend-item"><div className="legend-box status-damaged" /> Damaged</div>
+            <div className="legend-item"><div className="legend-box status-maintenance" /> Shelf Maint.</div>
+            <div className="legend-item"><div className="legend-box status-recount" /> Recount Req.</div>
+          </div>
 
-      {isLoading ? (
-        <div>Loading warehouse layout...</div>
-      ) : !data || data.aisles.length === 0 ? (
-        <div>No layout data available.</div>
-      ) : (
-        <div className="warehouse-grid">
-          {data.aisles.map((aisle) => (
-            <div key={aisle.aisle} className="aisle-col">
-              <div className="aisle-title">Aisle {aisle.aisle}</div>
-              <div className="shelves-list">
-                {aisle.shelves.map((shelf) => {
-                  const isMaintenance = shelf.status === 'MAINTENANCE';
-                  return (
-                    <div
-                      key={shelf.code}
-                      className={`shelf-card ${isMaintenance ? 'shelf-maintenance' : ''}`}
-                      data-testid={`shelf-card-${shelf.code}`}
-                    >
-                      <div className="shelf-header">
-                        <span>{shelf.code}</span>
-                        <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>
-                          {shelf.storage_class === 'HAZMAT' ? 'HAZ' : 'STD'}
-                        </span>
-                      </div>
-                      <div className="bin-cells">
-                        {shelf.bins
-                          .slice()
-                          .sort((a, b) => a.level - b.level)
-                          .map((bin) => {
-                            const statusCls = getBinStatusClass(bin, shelf.status);
-                            const matched = isMatching(bin, shelf.code);
-                            return (
-                              <div
-                                key={bin.code}
-                                className={`bin-cell ${statusCls} ${matched ? 'highlight' : ''}`}
-                                onMouseEnter={(e) => handleMouseEnter(bin, e)}
-                                onMouseLeave={handleMouseLeave}
-                                onClick={(e) => handleMouseEnter(bin, e)}
-                                data-testid={`bin-cell-${bin.code}`}
-                              >
-                                <span>L{bin.level}</span>
-                                <span>{bin.qty > 0 ? bin.qty : ''}</span>
-                              </div>
-                            );
-                          })}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+          {isLoading ? (
+            <div className="card" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+              Loading warehouse layout...
             </div>
-          ))}
-        </div>
+          ) : !data || data.aisles.length === 0 ? (
+            <div className="card" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+              No layout data available.
+            </div>
+          ) : (
+            <div className="warehouse-grid">
+              {data.aisles.map((aisle) => (
+                <div key={aisle.aisle} className="aisle-col">
+                  <div className="aisle-title">Aisle {aisle.aisle}</div>
+                  <div className="shelves-list">
+                    {aisle.shelves.map((shelf) => {
+                      const isMaintenance = shelf.status === 'MAINTENANCE';
+                      return (
+                        <div
+                          key={shelf.code}
+                          className={`shelf-card ${isMaintenance ? 'shelf-maintenance' : ''}`}
+                          data-testid={`shelf-card-${shelf.code}`}
+                        >
+                          <div className="shelf-header">
+                            <span style={{ fontFamily: 'var(--font-mono)' }}>{shelf.code}</span>
+                            <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 700 }}>
+                              {shelf.storage_class === 'HAZMAT' ? 'HAZ' : 'STD'}
+                            </span>
+                          </div>
+                          <div className="bin-cells">
+                            {shelf.bins
+                              .slice()
+                              .sort((a, b) => a.level - b.level)
+                              .map((bin) => {
+                                const statusCls = getBinStatusClass(bin, shelf.status);
+                                const matched = isMatching(bin, shelf.code);
+                                return (
+                                  <div
+                                    key={bin.code}
+                                    className={`bin-cell ${statusCls} ${matched ? 'highlight' : ''}`}
+                                    onMouseEnter={(e) => handleMouseEnter(bin, e)}
+                                    onMouseLeave={handleMouseLeave}
+                                    onClick={(e) => handleMouseEnter(bin, e)}
+                                    data-testid={`bin-cell-${bin.code}`}
+                                  >
+                                    <span>L{bin.level}</span>
+                                    <span>{bin.qty > 0 ? bin.qty : ''}</span>
+                                  </div>
+                                );
+                              })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Mode 2: 2D Floorplan View */}
+      {viewMode === 'map' && (
+        <Suspense
+          fallback={
+            <div className="card" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+              Loading view…
+            </div>
+          }
+        >
+          <ViewErrorBoundary onReset={() => setViewMode('cards')}>
+            <FloorplanView layout={data} mission={missionRoute} locateQuery={locateQuery} />
+          </ViewErrorBoundary>
+        </Suspense>
+      )}
+
+      {/* Mode 3: 3D Twin View */}
+      {viewMode === '3d' && (
+        <Suspense
+          fallback={
+            <div className="card" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+              Loading view…
+            </div>
+          }
+        >
+          <ViewErrorBoundary onReset={() => setViewMode('cards')}>
+            <TwinView layout={data} mission={missionRoute} locateQuery={locateQuery} />
+          </ViewErrorBoundary>
+        </Suspense>
       )}
 
       {/* Floating Tooltip */}
@@ -187,29 +284,29 @@ export const WarehousePage: React.FC = () => {
         <div
           style={{
             position: 'absolute',
-            left: Math.min(window.innerWidth - 240, tooltipPos.x),
+            left: Math.min(window.innerWidth - 260, tooltipPos.x),
             top: tooltipPos.y,
             backgroundColor: 'var(--bg-surface)',
-            border: '1px solid var(--border-color)',
-            borderRadius: 6,
-            padding: 10,
-            fontSize: 12,
-            boxShadow: '0 6px 16px rgba(0,0,0,0.4)',
+            border: '1px solid var(--border-strong)',
+            borderRadius: 'var(--radius-md)',
+            padding: '12px 14px',
+            fontSize: '12px',
+            boxShadow: 'var(--shadow-md)',
             zIndex: 1001,
             pointerEvents: 'none',
-            minWidth: 200
+            minWidth: '220px'
           }}
         >
-          <div style={{ fontWeight: 700, marginBottom: 4 }}>{hoveredBin.code}</div>
-          <div>Status: <span style={{ textTransform: 'uppercase' }}>{hoveredBin.status}</span></div>
-          <div>Capacity: {hoveredBin.qty} / {hoveredBin.capacity}</div>
-          <div>Reserved: {hoveredBin.reserved_qty}</div>
+          <div style={{ fontWeight: 800, marginBottom: '6px', fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>{hoveredBin.code}</div>
+          <div style={{ color: 'var(--text-secondary)' }}>Status: <span style={{ textTransform: 'uppercase', fontWeight: 700, color: 'var(--text-primary)' }}>{hoveredBin.status}</span></div>
+          <div style={{ color: 'var(--text-secondary)' }}>Capacity: <strong style={{ color: 'var(--text-primary)' }}>{hoveredBin.qty}</strong> / {hoveredBin.capacity}</div>
+          <div style={{ color: 'var(--text-secondary)' }}>Reserved: <strong style={{ color: 'var(--text-primary)' }}>{hoveredBin.reserved_qty}</strong></div>
           {hoveredBin.sku ? (
-            <div style={{ marginTop: 4, paddingTop: 4, borderTop: '1px solid var(--border-color)' }}>
+            <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid var(--border-color)' }}>
               <ProductLabel sku={hoveredBin.sku} name={hoveredBin.product_name || hoveredBin.sku} />
             </div>
           ) : (
-            <div style={{ color: 'var(--text-muted)', marginTop: 4 }}>Empty</div>
+            <div style={{ color: 'var(--text-muted)', marginTop: '6px' }}>Empty</div>
           )}
         </div>
       )}

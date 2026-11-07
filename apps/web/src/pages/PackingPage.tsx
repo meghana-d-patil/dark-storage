@@ -76,36 +76,38 @@ export const PackingPage: React.FC = () => {
     !packMutation.isPending;
 
   return (
-    <div style={{ padding: '1.5rem', maxWidth: '1200px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-      <div>
-        <h1 style={{ margin: 0, fontSize: '1.75rem', fontWeight: 600 }}>Packing & Dispatch</h1>
-        <p style={{ margin: '0.25rem 0 0', color: 'var(--color-text-secondary)', fontSize: '0.9rem' }}>
-          Inspect picked units, handle shortfalls, and complete packing.
-        </p>
+    <div className="m3-page">
+      <div className="m3-page-header">
+        <div>
+          <h1>Packing & Dispatch</h1>
+          <p className="m3-subtitle">
+            Inspect picked units, handle shortfalls, and complete packing.
+          </p>
+        </div>
       </div>
 
       {packSuccess && (
-        <div className="banner banner-success" style={{ padding: '1rem', borderRadius: '8px' }} data-testid="pack-success-banner">
+        <div className="banner banner-success" data-testid="pack-success-banner">
           ✓ {packSuccess.packing_ref} — Order <strong>{packSuccess.order_ref}</strong> completed ({packSuccess.fulfilment_type} fulfilment).
         </div>
       )}
 
       {/* Main Grid: Left Queue, Right Detail */}
-      <div style={{ display: 'grid', gridTemplateColumns: '360px 1fr', gap: '1.5rem', alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '24px', alignItems: 'start' }}>
         {/* Left Column: Packing Queue */}
-        <div style={{ background: 'var(--color-bg-card)', borderRadius: '8px', overflow: 'hidden' }}>
-          <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 600 }}>Ready to Pack</h3>
+        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+          <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--bg-surface)' }}>
+            <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>Ready to Pack</h3>
             <span className="badge badge-info">{queue.length}</span>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', maxHeight: '600px', overflowY: 'auto' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', maxHeight: '640px', overflowY: 'auto' }}>
             {isLoading ? (
-              <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
+              <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
                 Loading queue...
               </div>
             ) : queue.length === 0 ? (
-              <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
+              <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
                 No orders waiting for packing.
               </div>
             ) : (
@@ -117,34 +119,35 @@ export const PackingPage: React.FC = () => {
                     onClick={() => handleSelectOrder(item)}
                     data-testid={`pack-queue-${item.order_ref}`}
                     style={{
-                      padding: '1rem',
-                      borderBottom: '1px solid rgba(255,255,255,0.03)',
+                      padding: '16px 20px',
+                      borderBottom: '1px solid var(--border-color)',
                       cursor: 'pointer',
-                      background: isSelected ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
-                      borderLeft: isSelected ? '3px solid var(--color-primary)' : '3px solid transparent'
+                      backgroundColor: isSelected ? 'var(--accent-primary-container)' : 'transparent',
+                      borderLeft: isSelected ? '4px solid var(--accent-primary)' : '4px solid transparent',
+                      transition: 'background-color 0.15s ease'
                     }}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
-                      <span style={{ fontWeight: 600, color: 'var(--color-primary)' }}>{item.order_ref}</span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                      <span style={{ fontWeight: 700, color: 'var(--accent-primary)', fontFamily: 'var(--font-mono)' }}>{item.order_ref}</span>
                       <StatusBadge status={item.priority} />
                     </div>
 
-                    <div style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', marginBottom: '0.5rem' }}>
+                    <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '8px' }}>
                       {item.customer_ref || 'Standard Customer'}
                     </div>
 
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem' }}>
-                      <span>
-                        Units: <strong>{item.total_picked}</strong> / {item.total_ordered}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px' }}>
+                      <span style={{ color: 'var(--text-secondary)' }}>
+                        Units: <strong style={{ color: 'var(--text-primary)' }}>{item.total_picked}</strong> / {item.total_ordered}
                       </span>
-                      <div style={{ display: 'flex', gap: '0.25rem' }}>
+                      <div style={{ display: 'flex', gap: '6px' }}>
                         {item.fulfilment_preview === 'PARTIAL' ? (
-                          <span className="badge badge-warning" style={{ fontSize: '0.7rem' }}>PARTIAL</span>
+                          <span className="badge badge-warning">PARTIAL</span>
                         ) : (
-                          <span className="badge badge-success" style={{ fontSize: '0.7rem' }}>FULL</span>
+                          <span className="badge badge-success">FULL</span>
                         )}
                         {item.needs_manager_approval && (
-                          <span className="badge badge-danger" style={{ fontSize: '0.7rem' }}>Needs Manager</span>
+                          <span className="badge badge-danger">Needs Manager</span>
                         )}
                       </div>
                     </div>
@@ -157,88 +160,91 @@ export const PackingPage: React.FC = () => {
 
         {/* Right Column: Order Detail & Pack Confirmation */}
         {selectedOrder ? (
-          <div style={{ background: 'var(--color-bg-card)', borderRadius: '8px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
               <div>
-                <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 600 }}>Packing {selectedOrder.order_ref}</h2>
-                <span style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>
-                  Customer: <strong>{selectedOrder.customer_ref || 'Standard'}</strong> • Mission: <strong>{selectedOrder.mission_ref || 'N/A'}</strong>
+                <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 800 }}>Packing <span style={{ fontFamily: 'var(--font-mono)' }}>{selectedOrder.order_ref}</span></h2>
+                <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                  Customer: <strong style={{ color: 'var(--text-primary)' }}>{selectedOrder.customer_ref || 'Standard'}</strong> • Mission: <strong style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{selectedOrder.mission_ref || 'N/A'}</strong>
                 </span>
               </div>
               <div>
                 {selectedOrder.fulfilment_preview === 'PARTIAL' ? (
-                  <span className="badge badge-warning" style={{ fontSize: '0.85rem' }}>PARTIAL FULFILMENT</span>
+                  <span className="badge badge-warning" style={{ fontSize: '12px' }}>PARTIAL FULFILMENT</span>
                 ) : (
-                  <span className="badge badge-success" style={{ fontSize: '0.85rem' }}>FULL FULFILMENT</span>
+                  <span className="badge badge-success" style={{ fontSize: '12px' }}>FULL FULFILMENT</span>
                 )}
               </div>
             </div>
 
             {packError && (
-              <div className="banner banner-error" style={{ padding: '0.75rem', borderRadius: '4px' }} data-testid="pack-error-banner">
+              <div className="banner banner-error" data-testid="pack-error-banner">
                 {packError}
               </div>
             )}
 
             {/* Lines Table */}
             <div>
-              <h4 style={{ margin: '0 0 0.5rem', fontSize: '0.95rem', fontWeight: 600 }}>Order Lines Verification</h4>
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Product</th>
-                    <th>Ordered</th>
-                    <th>Picked</th>
-                    <th>Short</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {selectedOrder.lines.map((l) => {
-                    const isComplete = l.qty_picked === l.qty_ordered;
-                    return (
-                      <tr key={l.sku}>
-                        <td>
-                          <div><strong>{l.product_name}</strong></div>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', fontFamily: 'monospace' }}>{l.sku}</div>
-                        </td>
-                        <td>{l.qty_ordered}</td>
-                        <td style={{ fontWeight: 600, color: isComplete ? 'inherit' : 'var(--color-warning)' }}>{l.qty_picked}</td>
-                        <td>{l.qty_short}</td>
-                        <td>
-                          {isComplete ? (
-                            <span style={{ color: '#10b981', fontWeight: 700 }}>✓ Complete</span>
-                          ) : (
-                            <span style={{ color: '#f59e0b', fontWeight: 700 }}>⚠ Short ({l.qty_short} short)</span>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+              <h4 style={{ margin: '0 0 10px', fontSize: '1rem', fontWeight: 700 }}>Order Lines Verification</h4>
+              <div className="table-container">
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Product</th>
+                      <th>Ordered</th>
+                      <th>Picked</th>
+                      <th>Short</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedOrder.lines.map((l) => {
+                      const isComplete = l.qty_picked === l.qty_ordered;
+                      return (
+                        <tr key={l.sku}>
+                          <td>
+                            <div style={{ fontWeight: 600 }}>{l.product_name}</div>
+                            <div style={{ fontSize: '12px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>{l.sku}</div>
+                          </td>
+                          <td style={{ fontWeight: 600 }}>{l.qty_ordered}</td>
+                          <td style={{ fontWeight: 700, color: isComplete ? 'inherit' : 'var(--accent-warning)' }}>{l.qty_picked}</td>
+                          <td style={{ fontWeight: 600 }}>{l.qty_short}</td>
+                          <td>
+                            {isComplete ? (
+                              <span style={{ color: 'var(--accent-success)', fontWeight: 700 }}>✓ Complete</span>
+                            ) : (
+                              <span style={{ color: 'var(--accent-warning)', fontWeight: 700 }}>⚠ Short ({l.qty_short} short)</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
 
             {/* Exceptions */}
             {selectedOrder.exceptions.length > 0 && (
               <div>
-                <h4 style={{ margin: '0 0 0.5rem', fontSize: '0.95rem', fontWeight: 600 }}>Resolved Exceptions</h4>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <h4 style={{ margin: '0 0 10px', fontSize: '1rem', fontWeight: 700 }}>Resolved Exceptions</h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {selectedOrder.exceptions.map((exc) => (
                     <div
                       key={exc.ref}
                       style={{
-                        padding: '0.6rem 0.8rem',
-                        background: 'rgba(255,255,255,0.02)',
-                        borderRadius: '4px',
-                        fontSize: '0.85rem',
+                        padding: '10px 14px',
+                        backgroundColor: 'var(--bg-surface)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: 'var(--radius-sm)',
+                        fontSize: '13px',
                         display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'center'
                       }}
                     >
                       <div>
-                        <strong>{exc.ref}</strong> — <span className="badge badge-warning">{exc.type}</span> {exc.notes ? `("${exc.notes}")` : ''}
+                        <strong style={{ fontFamily: 'var(--font-mono)' }}>{exc.ref}</strong> — <span className="badge badge-warning">{exc.type}</span> {exc.notes ? `("${exc.notes}")` : ''}
                       </div>
                       <span className="badge badge-info">{exc.resolution || 'RESOLVED'}</span>
                     </div>
@@ -248,12 +254,12 @@ export const PackingPage: React.FC = () => {
             )}
 
             {/* Notes Input */}
-            <div>
-              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 500, marginBottom: '0.25rem' }}>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">
                 Packing Notes (Optional)
               </label>
               <textarea
-                className="form-control"
+                className="input-field"
                 rows={2}
                 data-testid="pack-notes-input"
                 placeholder="e.g. Packed in standard cardboard box with bubble wrap..."
@@ -265,18 +271,18 @@ export const PackingPage: React.FC = () => {
             {/* Manager acceptance for partial */}
             {isPartial && (
               <div
+                className="alert alert-warning"
                 style={{
-                  background: 'rgba(245, 158, 11, 0.08)',
-                  border: '1px solid rgba(245, 158, 11, 0.25)',
-                  borderRadius: '6px',
-                  padding: '1rem'
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px'
                 }}
               >
-                <div style={{ fontWeight: 600, color: '#fbbf24', fontSize: '0.9rem', marginBottom: '0.5rem' }}>
+                <div style={{ fontWeight: 700, color: '#fde68a', fontSize: '14px' }}>
                   Partial Fulfilment Warning ({selectedOrder.total_short} units short)
                 </div>
                 {isManager ? (
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.875rem' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13.5px' }}>
                     <input
                       type="checkbox"
                       data-testid="pack-accept-partial-checkbox"
@@ -286,7 +292,7 @@ export const PackingPage: React.FC = () => {
                     <span>I accept partial fulfilment for this order</span>
                   </label>
                 ) : (
-                  <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--color-text-secondary)' }} data-testid="staff-pack-disabled">
+                  <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-secondary)' }} data-testid="staff-pack-disabled">
                     Manager approval is required to pack orders with shortfalls.
                   </p>
                 )}
@@ -294,7 +300,7 @@ export const PackingPage: React.FC = () => {
             )}
 
             {/* Confirm packing button */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '6px' }}>
               <button
                 type="button"
                 className="btn btn-primary"
@@ -311,7 +317,7 @@ export const PackingPage: React.FC = () => {
             </div>
           </div>
         ) : (
-          <div style={{ padding: '3rem', textAlign: 'center', background: 'var(--color-bg-card)', borderRadius: '8px', color: 'var(--color-text-secondary)' }}>
+          <div className="card" style={{ padding: '3.5rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
             Select an order from the queue to start packing.
           </div>
         )}

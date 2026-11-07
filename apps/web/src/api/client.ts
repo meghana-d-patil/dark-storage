@@ -30,8 +30,16 @@ export async function apiFetch<T>(
     headers.set('Authorization', `Bearer ${token}`);
   }
 
-  if (options.idempotencyKey) {
-    headers.set('Idempotency-Key', options.idempotencyKey);
+  const method = (options.method || 'GET').toUpperCase();
+  const idemKey =
+    options.idempotencyKey ||
+    headers.get('Idempotency-Key') ||
+    (method !== 'GET' && method !== 'HEAD'
+      ? `idem-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
+      : undefined);
+
+  if (idemKey) {
+    headers.set('Idempotency-Key', idemKey);
   }
 
   try {

@@ -1,30 +1,32 @@
 import React, { useState } from 'react';
-import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiFetch } from '../api/client.js';
+import { apiFetch, ApiError } from '../api/client.js';
 import { useAuthStore } from '../stores/authStore.js';
-import { OrderDto } from '@dark-storage/shared';
+import { OrderDto, MissionDto } from '@dark-storage/shared';
 import { StatusBadge } from '../components/StatusBadge.js';
 
 export const OrderDetailPage: React.FC = () => {
   const { ref } = useParams<{ ref: string }>();
   const navigate = useNavigate();
-  const location = useLocation();
   const queryClient = useQueryClient();
   const { user } = useAuthStore();
-
   const isManager = user?.role === 'MANAGER';
-  const bannerMessage = (location.state as any)?.banner;
 
+  // Modal states
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
-  const [cancelError, setCancelError] = useState('');
+  const [cancelError, setCancelError] = useState<string | null>(null);
+
   const [assignModalOpen, setAssignModalOpen] = useState(false);
   const [isReassign, setIsReassign] = useState(false);
   const [selectedPickerId, setSelectedPickerId] = useState<number | null>(null);
-  const [assignError, setAssignError] = useState('');
-  const [expandedLines, setExpandedLines] = useState<Record<number, boolean>>({});
+  const [assignError, setAssignError] = useState<string | null>(null);
 
+  const [expandedLines, setExpandedLines] = useState<Record<number, boolean>>({});
+  const [bannerMessage, setBannerMessage] = useState<string | null>(null);
+
+  // Fetch order
   const { data: order, isLoading, error } = useQuery<OrderDto>({
     queryKey: ['order', ref],
     queryFn: () => apiFetch(`/api/orders/${ref}`),
@@ -32,13 +34,15 @@ export const OrderDetailPage: React.FC = () => {
     enabled: !!ref
   });
 
-  const { data: pickersData } = useQuery<{ pickers?: any[]; users?: any[] }>({
+  // Fetch available pickers for assign modal
+  const { data: pickersData } = useQuery<{ pickers: Array<{ id: number; username: string; display_name: string; open_missions: number }> }>({
     queryKey: ['pickers'],
     queryFn: () => apiFetch('/api/users?role=PICKER'),
-    enabled: isManager
+    enabled: assignModalOpen && isManager
   });
-  const pickers = pickersData?.pickers || pickersData?.users || [];
+  const pickers = pickersData?.pickers || [];
 
+  // Fetch associated mission if order is ASSIGNED/PICKING/PICKED/COMPLETED
   const { data: missionsData } = useQuery<{ missions?: any[] }>({
     queryKey: ['missions'],
     queryFn: () => apiFetch('/api/missions'),
@@ -46,82 +50,95 @@ export const OrderDetailPage: React.FC = () => {
   });
   const mission = missionsData?.missions?.find((m: any) => m.order_ref === ref);
 
+  // Assign mutation
   const assignMutation = useMutation({
-    mutationFn: (pickerId: number) =>
-      apiFetch(`/api/orders/${ref}/assign`, {
+    mutationFn: async (pickerId: number) => {
+      setAssignError(null);
+      return apiFetch(`/api/orders/${ref}/assign`, {
         method: 'POST',
-        headers: {
-          'Idempotency-Key': `assign-${ref}-${Date.now()}`
-        },
+        idempotencyKey: `assign-${ref}-${Date.now()}`,
         body: JSON.stringify({ picker_id: pickerId })
-      }),
+      });
+    },
     onSuccess: () => {
       setAssignModalOpen(false);
-      setAssignError('');
-      setSelectedPickerId(null);
+      setBannerMessage('Picker assigned successfully. Mission created.');
       queryClient.invalidateQueries({ queryKey: ['order', ref] });
-      queryClient.invalidateQueries({ queryKey: ['orders'] });
       queryClient.invalidateQueries({ queryKey: ['missions'] });
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
     },
-    onError: (err: any) => {
-      setAssignError(err.message || 'Failed to assign picker');
+    onError: (err) => {
+      if (err instanceof ApiError) {
+        setAssignError(err.message);
+      } else {
+        setAssignError('Failed to assign picker');
+      }
     }
   });
 
+  // Reassign mutation
   const reassignMutation = useMutation({
-    mutationFn: (pickerId: number) =>
-      apiFetch(`/api/orders/${ref}/reassign`, {
+    mutationFn: async (pickerId: number) => {
+      setAssignError(null);
+      return apiFetch(`/api/orders/${ref}/reassign`, {
         method: 'POST',
-        headers: {
-          'Idempotency-Key': `reassign-${ref}-${Date.now()}`
-        },
+        idempotencyKey: `reassign-${ref}-${Date.now()}`,
         body: JSON.stringify({ picker_id: pickerId })
-      }),
+      });
+    },
     onSuccess: () => {
       setAssignModalOpen(false);
-      setAssignError('');
-      setSelectedPickerId(null);
+      setBannerMessage('Order reassigned successfully.');
       queryClient.invalidateQueries({ queryKey: ['order', ref] });
-      queryClient.invalidateQueries({ queryKey: ['orders'] });
       queryClient.invalidateQueries({ queryKey: ['missions'] });
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
     },
-    onError: (err: any) => {
-      setAssignError(err.message || 'Failed to reassign picker');
+    onError: (err) => {
+      if (err instanceof ApiError) {
+        setAssignError(err.message);
+      } else {
+        setAssignError('Failed to reassign picker');
+      }
     }
   });
 
+  // Cancel mutation
   const cancelMutation = useMutation({
-    mutationFn: (reason: string) =>
-      apiFetch(`/api/orders/${ref}/cancel`, {
+    mutationFn: async (reason: string) => {
+      setCancelError(null);
+      return apiFetch(`/api/orders/${ref}/cancel`, {
         method: 'POST',
-        headers: {
-          'Idempotency-Key': `cancel-${ref}-${Date.now()}`
-        },
+        idempotencyKey: `cancel-${ref}-${Date.now()}`,
         body: JSON.stringify({ reason })
-      }),
+      });
+    },
     onSuccess: () => {
       setCancelModalOpen(false);
-      setCancelReason('');
-      setCancelError('');
+      setBannerMessage('Order cancelled and reserved stock released.');
       queryClient.invalidateQueries({ queryKey: ['order', ref] });
       queryClient.invalidateQueries({ queryKey: ['orders'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
     },
-    onError: (err: any) => {
-      setCancelError(err.message || 'Failed to cancel order');
+    onError: (err) => {
+      if (err instanceof ApiError) {
+        setCancelError(err.message);
+      } else {
+        setCancelError('Failed to cancel order');
+      }
     }
   });
 
   if (isLoading) {
-    return <div style={{ padding: '2rem' }}>Loading order {ref}...</div>;
+    return <div className="card" style={{ padding: '3rem', textAlign: 'center', margin: '2rem auto', maxWidth: '600px' }}>Loading order {ref}...</div>;
   }
 
   if (error || !order) {
     return (
-      <div style={{ padding: '2rem' }}>
-        <button className="btn btn-secondary" onClick={() => navigate('/orders')}>
+      <div className="card" style={{ padding: '3rem', textAlign: 'center', margin: '2rem auto', maxWidth: '600px' }}>
+        <button className="btn btn-secondary btn-sm" onClick={() => navigate('/orders')} style={{ marginBottom: '1rem' }}>
           ← Back to Orders
         </button>
-        <p style={{ color: 'var(--color-danger)', marginTop: '1rem' }}>Order not found or error loading.</p>
+        <p style={{ color: 'var(--accent-danger)' }}>Order not found or error loading.</p>
       </div>
     );
   }
@@ -137,15 +154,15 @@ export const OrderDetailPage: React.FC = () => {
   };
 
   return (
-    <div style={{ padding: '1.5rem', maxWidth: '1100px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+    <div className="m3-page" style={{ maxWidth: '1100px' }}>
       {/* Navigation & Header */}
       <div>
-        <button className="btn btn-secondary" onClick={() => navigate('/orders')} style={{ marginBottom: '0.5rem' }}>
+        <button className="btn btn-secondary btn-sm" onClick={() => navigate('/orders')} style={{ marginBottom: '12px' }}>
           ← Back to Orders
         </button>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <h1 style={{ margin: 0, fontSize: '1.75rem', fontWeight: 600 }}>{order.ref}</h1>
+        <div className="m3-page-header">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+            <h1 style={{ margin: 0, fontFamily: 'var(--font-mono)' }}>{order.ref}</h1>
             <StatusBadge status={order.status} />
             <span className={`badge badge-${order.priority === 'URGENT' ? 'danger' : order.priority === 'HIGH' ? 'warning' : 'secondary'}`}>
               {order.priority}
@@ -153,7 +170,7 @@ export const OrderDetailPage: React.FC = () => {
             <span className="badge badge-info">{order.order_type}</span>
           </div>
 
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', gap: '8px' }}>
             {isManager && order.status === 'RESERVED' && (
               <button
                 className="btn btn-primary"
@@ -194,39 +211,37 @@ export const OrderDetailPage: React.FC = () => {
       </div>
 
       {bannerMessage && (
-        <div className="banner banner-success" style={{ padding: '1rem', borderRadius: '8px' }}>
+        <div className="banner banner-success">
           ✓ {bannerMessage}
         </div>
       )}
 
       {order.status === 'CANCELLED' && (
-        <div className="banner banner-error" style={{ padding: '1rem', borderRadius: '8px' }}>
+        <div className="banner banner-error">
           This order was cancelled. Reason: {order.cancelled_reason || 'No reason provided'}
         </div>
       )}
 
       {/* Facts Card */}
       <div
+        className="card"
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: '1rem',
-          background: 'var(--color-bg-card)',
-          padding: '1.25rem',
-          borderRadius: '8px'
+          gap: '16px'
         }}
       >
         <div>
-          <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>Customer Ref</span>
-          <p style={{ margin: '0.25rem 0 0', fontWeight: 500 }}>{order.customer_ref || '—'}</p>
+          <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.04em' }}>Customer Ref</span>
+          <p style={{ margin: '6px 0 0', fontWeight: 600 }}>{order.customer_ref || '—'}</p>
         </div>
         <div>
-          <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>Requested By</span>
-          <p style={{ margin: '0.25rem 0 0', fontWeight: 500 }}>{order.requested_by}</p>
+          <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.04em' }}>Requested By</span>
+          <p style={{ margin: '6px 0 0', fontWeight: 600 }}>{order.requested_by}</p>
         </div>
         <div>
-          <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>Assigned Picker</span>
-          <p style={{ margin: '0.25rem 0 0', fontWeight: 500 }}>
+          <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.04em' }}>Assigned Picker</span>
+          <p style={{ margin: '6px 0 0', fontWeight: 600 }}>
             {typeof order.assigned_picker === 'object' && order.assigned_picker
               ? (order.assigned_picker as any).name
               : order.assigned_picker || 'Unassigned'}
@@ -234,54 +249,56 @@ export const OrderDetailPage: React.FC = () => {
         </div>
         {mission && (
           <div>
-            <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>Active Mission</span>
-            <p style={{ margin: '0.25rem 0 0', fontWeight: 500 }}>
-              <Link to={`/picking/${mission.ref}`} style={{ color: 'var(--color-primary)', textDecoration: 'underline' }}>
+            <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.04em' }}>Active Mission</span>
+            <p style={{ margin: '6px 0 0', fontWeight: 600 }}>
+              <Link to={`/picking/${mission.ref}`} style={{ color: 'var(--accent-primary)', fontFamily: 'var(--font-mono)' }}>
                 {mission.ref}
               </Link>{' '}
-              ({mission.route.total_distance.toFixed(1)} u · {mission.route.algorithm})
+              <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                ({mission.route.total_distance.toFixed(1)} u · {mission.route.algorithm})
+              </span>
             </p>
           </div>
         )}
         <div>
-          <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>Created At</span>
-          <p style={{ margin: '0.25rem 0 0', fontWeight: 500 }}>{new Date(order.created_at).toLocaleString()}</p>
+          <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.04em' }}>Created At</span>
+          <p style={{ margin: '6px 0 0', fontWeight: 600, fontSize: '13px' }}>{new Date(order.created_at).toLocaleString()}</p>
         </div>
         {order.notes && (
           <div style={{ gridColumn: '1 / -1' }}>
-            <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>Notes</span>
-            <p style={{ margin: '0.25rem 0 0' }}>{order.notes}</p>
+            <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.04em' }}>Notes</span>
+            <p style={{ margin: '6px 0 0', color: 'var(--text-secondary)' }}>{order.notes}</p>
           </div>
         )}
       </div>
 
       {/* Reservation Summary Strip */}
       <div
+        className="card"
         style={{
           display: 'flex',
-          gap: '2rem',
-          background: 'var(--color-bg-card)',
-          padding: '1rem 1.25rem',
-          borderRadius: '8px',
-          alignItems: 'center'
+          gap: '16px',
+          padding: '16px 20px',
+          alignItems: 'center',
+          flexWrap: 'wrap'
         }}
       >
-        <span style={{ fontWeight: 600 }}>Reservation Summary:</span>
-        <span className="badge badge-warning" style={{ padding: '0.4rem 0.8rem', fontSize: '0.9rem' }}>
-          Held Units: {order.reservation_summary.held_units}
+        <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>Reservation Summary:</span>
+        <span className="badge badge-warning">
+          Held: {order.reservation_summary.held_units} units
         </span>
-        <span className="badge badge-success" style={{ padding: '0.4rem 0.8rem', fontSize: '0.9rem' }}>
-          Consumed Units: {order.reservation_summary.consumed_units}
+        <span className="badge badge-success">
+          Consumed: {order.reservation_summary.consumed_units} units
         </span>
-        <span className="badge badge-secondary" style={{ padding: '0.4rem 0.8rem', fontSize: '0.9rem' }}>
-          Released Units: {order.reservation_summary.released_units}
+        <span className="badge badge-secondary">
+          Released: {order.reservation_summary.released_units} units
         </span>
       </div>
 
       {/* Order Lines with Expandable Reservations */}
-      <div style={{ background: 'var(--color-bg-card)', borderRadius: '8px', overflow: 'hidden' }}>
-        <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid var(--color-border)' }}>
-          <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Order Lines & Bin Reservations</h3>
+      <div className="table-container">
+        <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--bg-surface)' }}>
+          <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>Order Lines & Bin Reservations</h3>
         </div>
 
         <table className="table" style={{ margin: 0 }}>
@@ -303,16 +320,16 @@ export const OrderDetailPage: React.FC = () => {
                 <React.Fragment key={l.line_no}>
                   <tr
                     onClick={() => toggleLine(l.line_no)}
-                    style={{ cursor: 'pointer', background: 'rgba(255, 255, 255, 0.02)' }}
+                    style={{ cursor: 'pointer', backgroundColor: 'var(--bg-secondary)' }}
                   >
-                    <td>{isExpanded ? '▼' : '▶'}</td>
-                    <td>{l.line_no}</td>
+                    <td style={{ color: 'var(--text-muted)' }}>{isExpanded ? '▼' : '▶'}</td>
+                    <td style={{ fontWeight: 700 }}>{l.line_no}</td>
                     <td>
-                      <strong>{l.product_name}</strong> · {l.sku}
+                      <strong style={{ color: 'var(--text-primary)' }}>{l.product_name}</strong> · <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'var(--text-muted)' }}>{l.sku}</span>
                     </td>
-                    <td>{l.qty_ordered}</td>
-                    <td>{l.qty_picked}</td>
-                    <td>{l.qty_short}</td>
+                    <td style={{ fontWeight: 600 }}>{l.qty_ordered}</td>
+                    <td style={{ fontWeight: 600 }}>{l.qty_picked}</td>
+                    <td style={{ fontWeight: 600, color: l.qty_short > 0 ? 'var(--accent-warning)' : 'inherit' }}>{l.qty_short}</td>
                     <td>
                       <span className="badge badge-info">{l.reservations.length} bin(s)</span>
                     </td>
@@ -320,36 +337,38 @@ export const OrderDetailPage: React.FC = () => {
 
                   {isExpanded && (
                     <tr>
-                      <td colSpan={7} style={{ padding: '0.5rem 1rem 1rem 3rem', background: 'rgba(0, 0, 0, 0.15)' }}>
-                        <div style={{ fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--color-text-secondary)' }}>
+                      <td colSpan={7} style={{ padding: '14px 20px 18px 48px', backgroundColor: 'var(--bg-surface)' }}>
+                        <div style={{ fontSize: '12px', fontWeight: 700, marginBottom: '8px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                           Allocated Bin Reservations:
                         </div>
-                        <table className="table" style={{ margin: 0, background: 'var(--color-bg-card)', borderRadius: '6px' }}>
-                          <thead>
-                            <tr style={{ fontSize: '0.8rem' }}>
-                              <th>Bin Location</th>
-                              <th>Reserved Qty</th>
-                              <th>Consumed</th>
-                              <th>Released</th>
-                              <th>Outstanding</th>
-                              <th>Status</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {l.reservations.map((r) => (
-                              <tr key={r.id}>
-                                <td style={{ fontWeight: 600, color: 'var(--color-primary)' }}>{r.bin_code}</td>
-                                <td>{r.qty}</td>
-                                <td>{r.consumed_qty}</td>
-                                <td>{r.released_qty}</td>
-                                <td style={{ fontWeight: 600 }}>{r.outstanding}</td>
-                                <td>
-                                  <StatusBadge status={r.status} />
-                                </td>
+                        <div className="table-container" style={{ margin: 0 }}>
+                          <table className="table" style={{ margin: 0, backgroundColor: 'var(--bg-secondary)' }}>
+                            <thead>
+                              <tr>
+                                <th>Bin Location</th>
+                                <th>Reserved Qty</th>
+                                <th>Consumed</th>
+                                <th>Released</th>
+                                <th>Outstanding</th>
+                                <th>Status</th>
                               </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                            </thead>
+                            <tbody>
+                              {l.reservations.map((r) => (
+                                <tr key={r.id}>
+                                  <td style={{ fontWeight: 700, color: 'var(--accent-primary)', fontFamily: 'var(--font-mono)' }}>{r.bin_code}</td>
+                                  <td style={{ fontWeight: 600 }}>{r.qty}</td>
+                                  <td>{r.consumed_qty}</td>
+                                  <td>{r.released_qty}</td>
+                                  <td style={{ fontWeight: 700 }}>{r.outstanding}</td>
+                                  <td>
+                                    <StatusBadge status={r.status} />
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
                       </td>
                     </tr>
                   )}
@@ -361,76 +380,78 @@ export const OrderDetailPage: React.FC = () => {
       </div>
 
       {/* Audit Timeline */}
-      <div style={{ background: 'var(--color-bg-card)', padding: '1.25rem', borderRadius: '8px' }}>
-        <h3 style={{ margin: '0 0 1rem', fontSize: '1.1rem' }}>Audit Timeline</h3>
+      <div className="card">
+        <h3 style={{ margin: '0 0 16px', fontSize: '1.1rem', fontWeight: 700 }}>Audit Timeline</h3>
         {order.audit.length === 0 ? (
-          <p style={{ color: 'var(--color-text-secondary)', margin: 0 }}>No audit logs recorded yet.</p>
+          <p style={{ color: 'var(--text-secondary)', margin: 0 }}>No audit logs recorded yet.</p>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {order.audit.map((a, idx) => (
               <div
                 key={idx}
                 style={{
+                  padding: '12px 16px',
+                  backgroundColor: 'var(--bg-surface)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: 'var(--radius-sm)',
                   display: 'flex',
                   justifyContent: 'space-between',
-                  padding: '0.5rem 0',
-                  borderBottom: '1px solid rgba(255,255,255,0.05)'
+                  alignItems: 'center',
+                  fontSize: '13px'
                 }}
               >
                 <div>
-                  <strong style={{ color: 'var(--color-primary)' }}>{a.action}</strong> by {a.by}
+                  <span className="badge badge-info" style={{ marginRight: '10px' }}>{a.action}</span>
+                  <span style={{ color: 'var(--text-secondary)' }}>by {a.by}</span>
                 </div>
-                <div style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>
+                <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
                   {new Date(a.at).toLocaleString()}
-                </div>
+                </span>
               </div>
             ))}
           </div>
         )}
       </div>
 
-      {/* Assign Picker Modal */}
+      {/* Assign Modal */}
       {assignModalOpen && (
         <div className="modal-backdrop">
-          <div className="modal" style={{ maxWidth: '480px' }}>
-            <h3 style={{ margin: '0 0 1rem' }}>
-              {isReassign ? `Reassign Picker for ${order.ref}` : `Assign Picker for ${order.ref}`}
+          <div className="modal-content" style={{ maxWidth: '480px' }}>
+            <h3 style={{ margin: '0 0 14px', fontSize: '1.25rem', fontWeight: 800 }}>
+              {isReassign ? 'Reassign Picker' : 'Assign Picker to Order'}
             </h3>
-            <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', marginBottom: '1rem' }}>
-              Select an active warehouse picker. Engine 2 will compute the optimal picking route over the warehouse graph.
-            </p>
 
-            {assignError && <p style={{ color: 'var(--color-danger)', fontSize: '0.85rem' }}>{assignError}</p>}
+            {assignError && <p style={{ color: 'var(--accent-danger)', fontSize: '13px', marginBottom: '12px' }}>{assignError}</p>}
 
-            <div style={{ marginBottom: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 500 }}>Select Picker</label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px' }}>
               {pickers.length === 0 ? (
-                <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>No active pickers available.</p>
+                <p style={{ color: 'var(--text-secondary)' }}>No active pickers available.</p>
               ) : (
-                pickers.map((p: any) => (
+                pickers.map((p) => (
                   <label
                     key={p.id}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
-                      padding: '0.6rem 0.75rem',
-                      background: selectedPickerId === p.id ? 'var(--color-bg-hover)' : 'rgba(255,255,255,0.02)',
-                      border: '1px solid ' + (selectedPickerId === p.id ? 'var(--color-primary)' : 'rgba(255,255,255,0.1)'),
-                      borderRadius: '6px',
+                      padding: '12px 16px',
+                      backgroundColor: 'var(--bg-surface)',
+                      border: '1.5px solid',
+                      borderColor: selectedPickerId === p.id ? 'var(--accent-primary)' : 'var(--border-color)',
+                      borderRadius: 'var(--radius-md)',
                       cursor: 'pointer'
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <input
                         type="radio"
-                        name="selectedPicker"
+                        name="picker"
                         checked={selectedPickerId === p.id}
                         onChange={() => setSelectedPickerId(p.id)}
                       />
-                      <span>{p.display_name}</span>
+                      <span style={{ fontWeight: 600 }}>{p.display_name}</span>
                     </div>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
+                    <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
                       {p.open_missions} active mission{p.open_missions === 1 ? '' : 's'}
                     </span>
                   </label>
@@ -438,7 +459,7 @@ export const OrderDetailPage: React.FC = () => {
               )}
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
               <button
                 className="btn btn-secondary"
                 onClick={() => setAssignModalOpen(false)}
@@ -469,18 +490,18 @@ export const OrderDetailPage: React.FC = () => {
       {/* Cancel Modal */}
       {cancelModalOpen && (
         <div className="modal-backdrop">
-          <div className="modal" style={{ maxWidth: '480px' }}>
-            <h3 style={{ margin: '0 0 1rem' }}>Cancel Order {order.ref}</h3>
-            <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', marginBottom: '1rem' }}>
+          <div className="modal-content" style={{ maxWidth: '480px' }}>
+            <h3 style={{ margin: '0 0 12px', fontSize: '1.25rem', fontWeight: 800 }}>Cancel Order <span style={{ fontFamily: 'var(--font-mono)' }}>{order.ref}</span></h3>
+            <p style={{ fontSize: '13.5px', color: 'var(--text-secondary)', marginBottom: '16px' }}>
               Cancelling will release all outstanding reserved units back to available inventory.
             </p>
 
-            {cancelError && <p style={{ color: 'var(--color-danger)', fontSize: '0.85rem' }}>{cancelError}</p>}
+            {cancelError && <p style={{ color: 'var(--accent-danger)', fontSize: '13px', marginBottom: '12px' }}>{cancelError}</p>}
 
-            <div style={{ marginBottom: '1rem' }}>
-              <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.25rem' }}>Reason for cancellation</label>
+            <div className="form-group" style={{ marginBottom: '20px' }}>
+              <label className="form-label">Reason for cancellation</label>
               <textarea
-                className="form-control"
+                className="input-field"
                 rows={3}
                 placeholder="e.g. Customer cancelled order"
                 value={cancelReason}
@@ -488,7 +509,7 @@ export const OrderDetailPage: React.FC = () => {
               />
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
               <button
                 className="btn btn-secondary"
                 onClick={() => setCancelModalOpen(false)}

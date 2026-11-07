@@ -11,6 +11,22 @@ export const inventoryRouter = Router();
 // Protect all inventory routes with authentication
 inventoryRouter.use(authMiddleware);
 
+// GET /api/inventory (alias for /summary)
+inventoryRouter.get('/', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const query = new URLSearchParams(req.query as Record<string, string>).toString();
+    const result = await callEngine3({
+      method: 'GET',
+      path: `/internal/v1/inventory/summary?${query}`,
+      requestId: req.requestId
+    });
+
+    res.status(result.status).json(result.data);
+  } catch (err) {
+    next(err);
+  }
+});
+
 // POST /api/inventory/bins/:code/status (MANAGER)
 inventoryRouter.post('/bins/:code/status', rbacMiddleware(['MANAGER']), async (req: Request, res: Response, next: NextFunction) => {
   try {

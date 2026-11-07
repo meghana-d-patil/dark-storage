@@ -2,31 +2,35 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { apiFetch } from '../api/client.js';
 import { useAuthStore } from '../stores/authStore.js';
-import { AuditItemDto } from '@dark-storage/shared';
+import { StressLabView } from '../features/stresslab/StressLabView.js';
 
-interface IntegrityCheckResult {
+interface AuditItem {
+  id: number;
+  at: string;
+  actor: string;
+  role: string;
+  action: string;
+  entity_type: string;
+  entity_id: string;
+  details: any;
+}
+
+interface IntegrityCheck {
   id: string;
   name: string;
-  status: 'PASS' | 'FAIL' | 'SKIP';
-  rows?: unknown[];
+  status: 'PASS' | 'FAIL' | 'WARN';
+  rows: any[];
 }
 
-interface IntegrityReport {
+interface IntegrityResponse {
   ok: boolean;
-  checks: IntegrityCheckResult[];
-}
-
-interface AuditResponse {
-  items: AuditItemDto[];
-  total: number;
-  page: number;
-  page_size: number;
+  timestamp: string;
+  checks: IntegrityCheck[];
 }
 
 export const AdminPage: React.FC = () => {
   const { user } = useAuthStore();
-  const isManager = user?.role === 'MANAGER';
-
+  const [mainTab, setMainTab] = useState<'overview' | 'stresslab'>('overview');
   const [activeTab, setActiveTab] = useState<'audit' | 'integrity'>('audit');
 
   // Audit filter state
@@ -35,24 +39,59 @@ export const AdminPage: React.FC = () => {
   const [filterActor, setFilterActor] = useState('');
   const [filterAction, setFilterAction] = useState('');
   const [page, setPage] = useState(1);
-  const pageSize = 25;
 
-  // Active query filters applied
-  const [appliedFilters, setAppliedFilters] = useState({
-    entity_type: '',
-    entity_id: '',
-    actor: '',
-    action: ''
+  // Applied filters (on submit)
+  const [appliedFilters, setAppliedFilters] = useState<{
+    entity_type?: string;
+    entity_id?: string;
+    actor_id?: string;
+    action?: string;
+  }>({});
+
+  const {
+    data: auditData,
+    isLoading: auditLoading,
+    error: auditError
+  } = useQuery<{
+    items: AuditItem[];
+    total: number;
+    page: number;
+    limit: number;
+  }>({
+    queryKey: ['audit', appliedFilters, page],
+    queryFn: () => {
+      const params = new URLSearchParams();
+      if (appliedFilters.entity_type) params.set('entity_type', appliedFilters.entity_type);
+      if (appliedFilters.entity_id) params.set('entity_id', appliedFilters.entity_id);
+      if (appliedFilters.actor_id) params.set('actor_id', appliedFilters.actor_id);
+      if (appliedFilters.action) params.set('action', appliedFilters.action);
+      params.set('page', String(page));
+      params.set('limit', '25');
+      return apiFetch(`/api/audit?${params.toString()}`);
+    },
+    enabled: activeTab === 'audit' && user?.role === 'MANAGER'
+  });
+
+  const {
+    data: integrityData,
+    isLoading: integrityLoading,
+    isFetching: integrityFetching,
+    error: integrityError,
+    refetch: refetchIntegrity
+  } = useQuery<IntegrityResponse>({
+    queryKey: ['admin-integrity'],
+    queryFn: () => apiFetch('/api/admin/integrity'),
+    enabled: activeTab === 'integrity' && user?.role === 'MANAGER'
   });
 
   const handleApplyFilters = (e: React.FormEvent) => {
     e.preventDefault();
     setPage(1);
     setAppliedFilters({
-      entity_type: filterEntityType.trim(),
-      entity_id: filterEntityId.trim(),
-      actor: filterActor.trim(),
-      action: filterAction.trim()
+      entity_type: filterEntityType.trim() || undefined,
+      entity_id: filterEntityId.trim() || undefined,
+      actor_id: filterActor.trim() || undefined,
+      action: filterAction.trim() || undefined
     });
   };
 
@@ -62,95 +101,77 @@ export const AdminPage: React.FC = () => {
     setFilterActor('');
     setFilterAction('');
     setPage(1);
-    setAppliedFilters({
-      entity_type: '',
-      entity_id: '',
-      actor: '',
-      action: ''
-    });
+    setAppliedFilters({});
   };
 
-  // Build query string
-  const auditQueryParams = new URLSearchParams();
-  if (appliedFilters.entity_type) auditQueryParams.set('entity_type', appliedFilters.entity_type);
-  if (appliedFilters.entity_id) auditQueryParams.set('entity_id', appliedFilters.entity_id);
-  if (appliedFilters.actor) auditQueryParams.set('actor', appliedFilters.actor);
-  if (appliedFilters.action) auditQueryParams.set('action', appliedFilters.action);
-  auditQueryParams.set('page', String(page));
-  auditQueryParams.set('page_size', String(pageSize));
-
-  const {
-    data: auditData,
-    isLoading: auditLoading,
-    error: auditError
-  } = useQuery<AuditResponse>({
-    queryKey: ['audit', appliedFilters, page],
-    queryFn: () => apiFetch<AuditResponse>(`/api/audit?${auditQueryParams.toString()}`),
-    enabled: isManager && activeTab === 'audit'
-  });
-
-  // Integrity query
-  const {
-    data: integrityData,
-    isLoading: integrityLoading,
-    isFetching: integrityFetching,
-    error: integrityError,
-    refetch: refetchIntegrity
-  } = useQuery<IntegrityReport>({
-    queryKey: ['admin-integrity'],
-    queryFn: () => apiFetch<IntegrityReport>('/api/admin/integrity'),
-    enabled: isManager && activeTab === 'integrity'
-  });
-
-  if (!isManager) {
+  if (user?.role !== 'MANAGER') {
     return (
-      <div style={{ padding: 24 }}>
-        <div className="card" style={{ padding: 24, textAlign: 'center' }}>
-          <h2 style={{ color: 'var(--accent-danger)', marginBottom: 12 }}>Access Denied</h2>
-          <p style={{ color: 'var(--text-secondary)' }}>
-            Manager privileges are required to access the Admin panel.
-          </p>
-        </div>
+      <div className="card" style={{ maxWidth: 480, margin: '40px auto', textAlign: 'center', padding: '32px 24px' }}>
+        <h2 style={{ color: 'var(--accent-danger)', marginBottom: 8, fontSize: 18 }}>Access Denied</h2>
+        <p style={{ color: 'var(--text-secondary)', fontSize: 14 }}>
+          System administration features require the <strong>MANAGER</strong> role. You are currently logged in as a <em>{user?.role || 'Guest'}</em>.
+        </p>
       </div>
     );
   }
 
-  const totalPages = auditData ? Math.max(1, Math.ceil(auditData.total / pageSize)) : 1;
+  const totalPages = auditData ? Math.max(1, Math.ceil(auditData.total / auditData.limit)) : 1;
 
   return (
-    <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 20 }}>
-      <div>
-        <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 4 }}>System Administration</h1>
-        <p style={{ color: 'var(--text-secondary)', fontSize: 14 }}>
-          Audit logs, database verification, and system integrity status.
-        </p>
+    <div className="m3-page">
+      <div className="m3-page-header">
+        <div>
+          <h1>System Administration</h1>
+          <p className="m3-subtitle">
+            Audit logs, database verification, and system integrity status.
+          </p>
+        </div>
       </div>
 
-      <div className="tabs">
+      {/* Main Tab Navigation */}
+      <div className="tabs" style={{ marginBottom: 16 }}>
         <button
-          className={`tab-btn ${activeTab === 'audit' ? 'active' : ''}`}
-          onClick={() => setActiveTab('audit')}
-          data-testid="tab-audit"
+          className={`tab-btn ${mainTab === 'overview' ? 'active' : ''}`}
+          onClick={() => setMainTab('overview')}
+          data-testid="admin-tab-overview"
         >
-          Audit Log
+          Overview &amp; Logs
         </button>
         <button
-          className={`tab-btn ${activeTab === 'integrity' ? 'active' : ''}`}
-          onClick={() => setActiveTab('integrity')}
-          data-testid="tab-integrity"
+          className={`tab-btn ${mainTab === 'stresslab' ? 'active' : ''}`}
+          onClick={() => setMainTab('stresslab')}
+          data-testid="admin-tab-stresslab"
         >
-          Database Integrity
+          ⚡ Concurrency &amp; ACID Stress Lab
         </button>
       </div>
+
+      {mainTab === 'overview' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div className="tabs" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: 4 }}>
+            <button
+              className={`tab-btn ${activeTab === 'audit' ? 'active' : ''}`}
+              onClick={() => setActiveTab('audit')}
+              data-testid="tab-audit"
+            >
+              Audit Log
+            </button>
+            <button
+              className={`tab-btn ${activeTab === 'integrity' ? 'active' : ''}`}
+              onClick={() => setActiveTab('integrity')}
+              data-testid="tab-integrity"
+            >
+              Database Integrity
+            </button>
+          </div>
 
       {activeTab === 'audit' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {/* Filters Form */}
           <form
             onSubmit={handleApplyFilters}
-            className="card"
+            className="m3-toolbar"
             style={{
-              padding: 16,
               display: 'grid',
               gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr)) auto',
               gap: 12,
@@ -217,70 +238,67 @@ export const AdminPage: React.FC = () => {
           </form>
 
           {/* Audit Table Card */}
-          <div className="card" style={{ padding: 16 }}>
+          <div className="table-container">
             {auditLoading ? (
-              <p style={{ color: 'var(--text-secondary)', padding: 16 }}>Loading audit entries...</p>
+              <p style={{ color: 'var(--text-secondary)', padding: '3rem', textAlign: 'center' }}>Loading audit entries...</p>
             ) : auditError ? (
-              <p style={{ color: 'var(--accent-danger)', padding: 16 }}>Failed to load audit log.</p>
+              <p style={{ color: 'var(--accent-danger)', padding: '3rem', textAlign: 'center' }}>Failed to load audit log.</p>
             ) : !auditData || auditData.items.length === 0 ? (
-              <p style={{ color: 'var(--text-secondary)', padding: 16 }}>No audit entries found.</p>
+              <p style={{ color: 'var(--text-secondary)', padding: '3rem', textAlign: 'center' }}>No audit entries found.</p>
             ) : (
               <>
-                <div className="table-container">
-                  <table data-testid="audit-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
-                    <thead>
-                      <tr style={{ borderBottom: '1px solid var(--border-color)', textAlign: 'left' }}>
-                        <th style={{ padding: '8px 12px' }}>Timestamp</th>
-                        <th style={{ padding: '8px 12px' }}>Actor</th>
-                        <th style={{ padding: '8px 12px' }}>Role</th>
-                        <th style={{ padding: '8px 12px' }}>Action</th>
-                        <th style={{ padding: '8px 12px' }}>Entity Type</th>
-                        <th style={{ padding: '8px 12px' }}>Entity ID</th>
-                        <th style={{ padding: '8px 12px' }}>Details</th>
+                <table className="table" data-testid="audit-table">
+                  <thead>
+                    <tr>
+                      <th>Timestamp</th>
+                      <th>Actor</th>
+                      <th>Role</th>
+                      <th>Action</th>
+                      <th>Entity Type</th>
+                      <th>Entity ID</th>
+                      <th>Details</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {auditData.items.map((item) => (
+                      <tr key={item.id}>
+                        <td style={{ whiteSpace: 'nowrap', color: 'var(--text-secondary)', fontSize: 13 }}>
+                          {new Date(item.at).toLocaleString()}
+                        </td>
+                        <td style={{ fontWeight: 600 }}>{item.actor}</td>
+                        <td>
+                          <span className="badge badge-info">{item.role}</span>
+                        </td>
+                        <td>
+                          <span style={{ fontFamily: 'var(--font-mono)' }}>{item.action}</span>
+                        </td>
+                        <td>{item.entity_type}</td>
+                        <td>
+                          <span style={{ fontFamily: 'var(--font-mono)' }}>{item.entity_id}</span>
+                        </td>
+                        <td style={{ maxWidth: 300 }}>
+                          <pre
+                            style={{
+                              margin: 0,
+                              fontSize: 11,
+                              background: 'var(--bg-surface)',
+                              border: '1px solid var(--border-color)',
+                              padding: '4px 8px',
+                              borderRadius: 'var(--radius-xs)',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                              color: 'var(--text-secondary)'
+                            }}
+                            title={JSON.stringify(item.details, null, 2)}
+                          >
+                            {JSON.stringify(item.details)}
+                          </pre>
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {auditData.items.map((item) => (
-                        <tr
-                          key={item.id}
-                          style={{ borderBottom: '1px solid var(--border-color)', fontSize: 13 }}
-                        >
-                          <td style={{ padding: '8px 12px', whiteSpace: 'nowrap', color: 'var(--text-secondary)' }}>
-                            {new Date(item.at).toLocaleString()}
-                          </td>
-                          <td style={{ padding: '8px 12px', fontWeight: 600 }}>{item.actor}</td>
-                          <td style={{ padding: '8px 12px' }}>
-                            <span className="badge badge-info">{item.role}</span>
-                          </td>
-                          <td style={{ padding: '8px 12px', fontFamily: 'var(--font-mono)' }}>
-                            {item.action}
-                          </td>
-                          <td style={{ padding: '8px 12px' }}>{item.entity_type}</td>
-                          <td style={{ padding: '8px 12px', fontFamily: 'var(--font-mono)' }}>
-                            {item.entity_id}
-                          </td>
-                          <td style={{ padding: '8px 12px', maxWidth: 300 }}>
-                            <pre
-                              style={{
-                                margin: 0,
-                                fontSize: 11,
-                                background: 'rgba(0,0,0,0.2)',
-                                padding: '4px 6px',
-                                borderRadius: 4,
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap'
-                              }}
-                              title={JSON.stringify(item.details, null, 2)}
-                            >
-                              {JSON.stringify(item.details)}
-                            </pre>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                    ))}
+                  </tbody>
+                </table>
 
                 {/* Pagination */}
                 <div
@@ -288,9 +306,9 @@ export const AdminPage: React.FC = () => {
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
-                    marginTop: 16,
-                    paddingTop: 12,
-                    borderTop: '1px solid var(--border-color)'
+                    padding: '16px 20px',
+                    borderTop: '1px solid var(--border-color)',
+                    backgroundColor: 'var(--bg-surface)'
                   }}
                 >
                   <span style={{ color: 'var(--text-secondary)', fontSize: 13 }} data-testid="audit-page-info">
@@ -298,7 +316,7 @@ export const AdminPage: React.FC = () => {
                   </span>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button
-                      className="btn btn-secondary"
+                      className="btn btn-secondary btn-sm"
                       disabled={page <= 1}
                       onClick={() => setPage((p) => Math.max(1, p - 1))}
                       data-testid="audit-prev-page"
@@ -306,7 +324,7 @@ export const AdminPage: React.FC = () => {
                       Previous
                     </button>
                     <button
-                      className="btn btn-secondary"
+                      className="btn btn-secondary btn-sm"
                       disabled={page >= totalPages}
                       onClick={() => setPage((p) => p + 1)}
                       data-testid="audit-next-page"
@@ -326,14 +344,16 @@ export const AdminPage: React.FC = () => {
           <div
             className="card"
             style={{
-              padding: 16,
+              padding: 20,
               display: 'flex',
               justifyContent: 'space-between',
-              alignItems: 'center'
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: 16
             }}
           >
             <div>
-              <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 4 }}>Warehouse Invariants Verifier</h3>
+              <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>Warehouse Invariants Verifier</h3>
               <p style={{ color: 'var(--text-secondary)', fontSize: 13, margin: 0 }}>
                 Executes all 13 database integrity checks against warehouse.db read-only.
               </p>
@@ -343,7 +363,7 @@ export const AdminPage: React.FC = () => {
                 <span
                   data-testid="integrity-status"
                   className={`badge ${integrityData.ok ? 'badge-ok' : 'badge-danger'}`}
-                  style={{ fontSize: 13, padding: '6px 12px' }}
+                  style={{ fontSize: 12, padding: '6px 14px' }}
                 >
                   {integrityData.ok ? 'PASS: ALL CHECKS PASSING' : 'FAIL: INVARIANTS VIOLATED'}
                 </span>
@@ -359,82 +379,83 @@ export const AdminPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="card" style={{ padding: 16 }}>
+          <div className="table-container">
             {integrityLoading ? (
-              <p style={{ color: 'var(--text-secondary)', padding: 16 }}>Running integrity checks...</p>
+              <p style={{ color: 'var(--text-secondary)', padding: '3rem', textAlign: 'center' }}>Running integrity checks...</p>
             ) : integrityError ? (
-              <p style={{ color: 'var(--accent-danger)', padding: 16 }}>
+              <p style={{ color: 'var(--accent-danger)', padding: '3rem', textAlign: 'center' }}>
                 Failed to execute integrity checks: {String(integrityError)}
               </p>
             ) : !integrityData ? (
-              <div style={{ textAlign: 'center', padding: 24, color: 'var(--text-secondary)' }}>
+              <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
                 Click "Run integrity checks" to inspect database invariants.
               </div>
             ) : (
-              <div className="table-container">
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr style={{ borderBottom: '1px solid var(--border-color)', textAlign: 'left' }}>
-                      <th style={{ padding: '8px 12px', width: 80 }}>Check ID</th>
-                      <th style={{ padding: '8px 12px' }}>Rule Description</th>
-                      <th style={{ padding: '8px 12px', width: 120 }}>Status</th>
-                      <th style={{ padding: '8px 12px' }}>Offending Rows</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {integrityData.checks.map((check) => (
-                      <tr
-                        key={check.id}
-                        style={{ borderBottom: '1px solid var(--border-color)', fontSize: 13 }}
-                      >
-                        <td style={{ padding: '8px 12px', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>
-                          {check.id}
-                        </td>
-                        <td style={{ padding: '8px 12px' }}>{check.name}</td>
-                        <td style={{ padding: '8px 12px' }}>
-                          <span
-                            data-testid={`integrity-check-${check.id}`}
-                            className={`badge ${
-                              check.status === 'PASS'
-                                ? 'badge-ok'
-                                : check.status === 'FAIL'
-                                ? 'badge-danger'
-                                : 'badge-warning'
-                            }`}
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th style={{ width: 100 }}>Check ID</th>
+                    <th>Rule Description</th>
+                    <th style={{ width: 120 }}>Status</th>
+                    <th>Offending Rows</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {integrityData.checks.map((check) => (
+                    <tr key={check.id}>
+                      <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--accent-primary)' }}>
+                        {check.id}
+                      </td>
+                      <td style={{ fontWeight: 500 }}>{check.name}</td>
+                      <td>
+                        <span
+                          data-testid={`integrity-check-${check.id}`}
+                          className={`badge ${
+                            check.status === 'PASS'
+                              ? 'badge-ok'
+                              : check.status === 'FAIL'
+                              ? 'badge-danger'
+                              : 'badge-warning'
+                          }`}
+                        >
+                          {check.status}
+                        </span>
+                      </td>
+                      <td>
+                        {check.rows && check.rows.length > 0 ? (
+                          <pre
+                            data-testid={`integrity-rows-${check.id}`}
+                            style={{
+                              margin: 0,
+                              fontSize: 11,
+                              color: 'var(--accent-danger)',
+                              background: 'rgba(239, 68, 68, 0.14)',
+                              border: '1px solid rgba(239, 68, 68, 0.3)',
+                              padding: '6px 10px',
+                              borderRadius: 'var(--radius-xs)',
+                              maxHeight: 120,
+                              overflow: 'auto'
+                            }}
                           >
-                            {check.status}
-                          </span>
-                        </td>
-                        <td style={{ padding: '8px 12px' }}>
-                          {check.rows && check.rows.length > 0 ? (
-                            <pre
-                              data-testid={`integrity-rows-${check.id}`}
-                              style={{
-                                margin: 0,
-                                fontSize: 11,
-                                color: 'var(--accent-danger)',
-                                background: 'rgba(239, 68, 68, 0.1)',
-                                padding: '4px 8px',
-                                borderRadius: 4,
-                                maxHeight: 120,
-                                overflow: 'auto'
-                              }}
-                            >
-                              {JSON.stringify(check.rows, null, 2)}
-                            </pre>
-                          ) : (
-                            <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>None</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                            {JSON.stringify(check.rows, null, 2)}
+                          </pre>
+                        ) : (
+                          <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>None</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             )}
           </div>
         </div>
       )}
+        </div>
+      )}
+
+      {/* Main Tab: Concurrency & ACID Stress Lab */}
+      {mainTab === 'stresslab' && <StressLabView />}
     </div>
   );
 };

@@ -45,6 +45,9 @@ export async function postTaskToEngine1(opts: {
       if (errBody?.error?.code) {
         throw new DomainError(errBody.error.code as ErrorCode, errBody.error.message, errBody.error.details);
       }
+      if (errBody?.code) {
+        throw new DomainError(errBody.code as ErrorCode, errBody.message, errBody.details);
+      }
       throw new DomainError('ENGINE1_UNAVAILABLE', `Engine 1 returned HTTP ${res.status}`);
     }
 
