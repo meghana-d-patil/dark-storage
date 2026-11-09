@@ -12,7 +12,13 @@ export default defineConfig({
       },
       '/ws': {
         target: 'ws://localhost:4000',
-        ws: true
+        ws: true,
+        configure: (proxy) => {
+          proxy.on('error', (err: any) => {
+            if (err?.code === 'ECONNABORTED' || err?.code === 'ECONNRESET') return;
+            console.error('[vite ws proxy error]', err?.message || err);
+          });
+        }
       }
     }
   }
