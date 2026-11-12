@@ -13,6 +13,7 @@ export const MissionDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useAuthStore();
+  const canPick = useCan('pick:execute');
 
   const isPicker = user?.role === 'PICKER';
   const isManager = user?.role === 'MANAGER';
@@ -148,7 +149,6 @@ export const MissionDetailPage: React.FC = () => {
     );
   }
 
-  const canPick = useCan('pick:execute');
   const isAssignedToMe = canPick && user && mission?.picker.id === user.id;
   const canStart = mission?.status === 'ASSIGNED' && isAssignedToMe;
   const isPickingActive = mission?.status === 'IN_PROGRESS' && isAssignedToMe;

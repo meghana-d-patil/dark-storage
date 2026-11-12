@@ -164,8 +164,21 @@ export function useRealtime(): void {
         rafIdRef.current = null;
       }
       if (wsRef.current) {
-        wsRef.current.close();
+        const ws = wsRef.current;
         wsRef.current = null;
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.close(1000, 'Unmounted');
+        } else if (ws.readyState === WebSocket.CONNECTING) {
+          ws.onopen = () => {
+            try {
+              ws.close(1000, 'Unmounted');
+            } catch {
+              // Ignore
+            }
+          };
+          ws.onerror = () => {};
+          ws.onclose = () => {};
+        }
       }
     };
   }, [token, queryClient, setConnected, updateSeq]);

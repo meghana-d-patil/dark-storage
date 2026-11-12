@@ -13,6 +13,8 @@ export const OrderDetailPage: React.FC = () => {
   const queryClient = useQueryClient();
   const { user } = useAuthStore();
   const isManager = user?.role === 'MANAGER';
+  const canCancelPerm = useCan('order:cancel');
+  const canReassign = useCan('mission:reassign');
 
   // Modal states
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
@@ -146,8 +148,6 @@ export const OrderDetailPage: React.FC = () => {
 
   const cancellableStatuses = ['RESERVED', 'ASSIGNED', 'PICKING'];
   const totalPicked = order.lines.reduce((acc, l) => acc + l.qty_picked, 0);
-  const canCancelPerm = useCan('order:cancel');
-  const canReassign = useCan('mission:reassign');
   const canCancel =
     canCancelPerm &&
     (cancellableStatuses.includes(order.status) || (order.status === 'PICKED' && totalPicked === 0));
