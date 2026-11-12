@@ -17,8 +17,8 @@ export function makeTestDb(): Database.Database {
 export function seedMinimal(db: Database.Database): void {
   // 1 Product
   db.prepare(`
-    INSERT OR IGNORE INTO products (sku, name, category, storage_class, unit, max_receive_qty, active)
-    VALUES ('SKU-TEST-001', 'Test Standard Item', 'Testing', 'STANDARD', 'EA', 500, 1)
+    INSERT OR IGNORE INTO products (sku, name, category, storage_class, unit, max_receive_qty, active, barcode, weight_g, price_paise)
+    VALUES ('SKU-TEST-001', 'Test Standard Item', 'Testing', 'STANDARD', 'EA', 500, 1, 'SKU-TEST-001', 100, 10000)
   `).run();
 
   // 1 Nav node for shelf access

@@ -4,6 +4,7 @@ import { nextRef } from './ids.js';
 import { recordMovement } from './inventoryRepo.js';
 import { recordAudit } from './audit.js';
 import { insertOutboxEvent } from './outbox.js';
+import { postLedger, ensureLot } from '../ledger/postLedger.js';
 
 export interface CreateReceiptLineArg {
   sku: string;
@@ -123,6 +124,33 @@ export function createReceipt(db: Database.Database, args: CreateReceiptArgs): R
   let lineNo = 1;
   for (const line of lines) {
     const pInfo = productInfoMap.get(line.sku.toUpperCase())!;
+
+    const lotId = `LOT-${receiptRef}-${lineNo}`;
+    ensureLot(db, {
+      lotId,
+      sku: pInfo.sku,
+      lotCode: receiptRef,
+      poRef: args.reference_no || receiptRef,
+      supplier: args.supplier || null,
+    });
+
+    postLedger(
+      db,
+      [
+        {
+          sku: pInfo.sku,
+          lotId,
+          qty: line.qty,
+          from: 'EXT',
+          to: `STAGED:${receiptRef}`,
+          type: 'RECEIVE',
+          refType: 'RECEIPT',
+          refId: receiptRef,
+          note: args.notes || undefined,
+        },
+      ],
+      { id: String(actor.id) }
+    );
 
     const movRef = recordMovement(db, {
       type: 'RECEIVE',

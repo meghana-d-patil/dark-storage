@@ -34,14 +34,14 @@
 - [x] P3-T7 Tests
 
 ## Phase 4: Append-only stock ledger (MUST)
-- [ ] P4-T1 Migration 013 product attributes
-- [ ] P4-T2 Migration 014 ledger
-- [ ] P4-T3 Opening backfill (code, not SQL)
-- [ ] P4-T4 `postLedger`
-- [ ] P4-T5 Rewire existing flows one at a time
-- [ ] P4-T6 Reconcile + ledger read
-- [ ] P4-T7 Guard test
-- [ ] P4-T8 Property test
+- [x] P4-T1 Migration 013 product attributes
+- [x] P4-T2 Migration 014 ledger
+- [x] P4-T3 Opening backfill (code, not SQL)
+- [x] P4-T4 `postLedger`
+- [x] P4-T5 Rewire existing flows one at a time
+- [x] P4-T6 Reconcile + ledger read
+- [x] P4-T7 Guard test
+- [x] P4-T8 Property test
 
 ## Phase 5: Totes, claim, leases, floor tasks, 3-step picking (MUST)
 - [ ] P5-T1 Migration 015
@@ -82,4 +82,4 @@
 TODO:
 - [ ] P2-T3 role redirects: update role redirects in `LoginPage.tsx` when `/floor/pick`, `/floor/pack`, `/floor/operator`, `/floor/dispatch`, `/audit` are implemented in P5/P6/P7/P12.
 
-next: P4-T1 Migration 013 product attributes
+next: P5-T1 Migration 015

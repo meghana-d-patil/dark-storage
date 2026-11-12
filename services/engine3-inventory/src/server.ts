@@ -25,11 +25,14 @@ import { createDashboardRouter } from './routes/dashboard.js';
 import { createOutboxRouter } from './routes/outbox.js';
 import { createConfigRouter } from './routes/config.js';
 import { createAuditRouter } from './routes/audit.js';
+import { createLedgerRouter } from './routes/ledger.js';
 import { createActorFromHeaders } from './middleware/rbac.js';
 import { ensureAuditChain } from './audit/appendAudit.js';
+import { backfillOpeningLedger } from './ledger/backfillOpening.js';
 
 export function createApp(db: Database.Database): Express {
   ensureAuditChain(db);
+  backfillOpeningLedger(db);
   const app = express();
   app.use(express.json({ limit: '1mb' }));
 
@@ -41,6 +44,7 @@ export function createApp(db: Database.Database): Express {
   app.use(createActorFromHeaders(db));
   app.use(createConfigRouter(db));
   app.use(createAuditRouter(db));
+  app.use('/internal/v1', createLedgerRouter(db));
   app.use(createAuthRouter(db));
   app.use(createProductsRouter(db));
   app.use(createIntegrityRouter(db));

@@ -132,6 +132,28 @@ async function main() {
   const invList = invData.items || [];
   console.log(`[Smoke] Inventory SKU count: ${invList.length}`);
 
+  // 5. Verify Ledger & Reconciliation
+  const ledgerRes = await fetch(`${BASE_URL}/api/ledger?limit=10`, {
+    headers: { Authorization: `Bearer ${managerToken}` }
+  });
+  if (!ledgerRes.ok) {
+    throw new Error(`GET /api/ledger failed with status ${ledgerRes.status}: ${await ledgerRes.text()}`);
+  }
+  const ledgerData = await ledgerRes.json();
+  console.log(`[Smoke] Ledger entries retrieved: ${ledgerData.count}`);
+
+  const reconcileRes = await fetch(`${BASE_URL}/api/ledger/reconcile`, {
+    headers: { Authorization: `Bearer ${managerToken}` }
+  });
+  if (!reconcileRes.ok) {
+    throw new Error(`GET /api/ledger/reconcile failed with status ${reconcileRes.status}: ${await reconcileRes.text()}`);
+  }
+  const reconcileData = await reconcileRes.json();
+  if (!reconcileData.ok || reconcileData.mismatches.length > 0) {
+    throw new Error(`Ledger reconciliation failed: ${JSON.stringify(reconcileData.mismatches)}`);
+  }
+  console.log('[Smoke] Ledger reconcile OK: projection matches ledger balances perfectly');
+
   console.log('[Smoke] ALL BASELINE CHECKS PASSED.');
 }
 
