@@ -8,14 +8,14 @@
 - [x] P0-T5 Baseline run
 
 ## Phase 1: Foundations (MUST)
-- [ ] P1-T1 Test harness
-- [ ] P1-T2 Migration 010 `users` rebuild
-- [ ] P1-T3 Seed users
-- [ ] P1-T4 Migration 011
-- [ ] P1-T5 Shared lib
-- [ ] P1-T6 Engine 3 plumbing
-- [ ] P1-T7 Gateway plumbing
-- [ ] P1-T8 Unit tests
+- [x] P1-T1 Test harness
+- [x] P1-T2 Migration 010 `users` rebuild
+- [x] P1-T3 Seed users
+- [x] P1-T4 Migration 011
+- [x] P1-T5 Shared lib
+- [x] P1-T6 Engine 3 plumbing
+- [x] P1-T7 Gateway plumbing
+- [x] P1-T8 Unit tests
 
 ## Phase 2: RBAC enforcement and removal of Manager execution powers (MUST)
 - [ ] P2-T1 Guard the gateway
@@ -79,4 +79,4 @@
 - [ ] P7-T11 Tests
 
 ---
-next: P1-T1 Test harness
+next: P2-T1 Guard the gateway

@@ -18,11 +18,12 @@ async function main() {
   const health = await healthRes.json();
   console.log('[Smoke] Health:', JSON.stringify(health));
 
-  // 2. Login as each existing seeded user
-  const users = ['manager1', 'operator1', 'picker1', 'picker2', 'staff1'];
+  // 2. Login as existing seeded users and new P1-T3 users
+  const legacyUsers = ['manager1', 'staff1'];
+  const newUsers = ['admin', 'manager', 'operator1', 'operator2', 'picker1', 'picker2', 'picker3', 'packer1', 'dispatch1', 'auditor1'];
   let managerToken = '';
 
-  for (const username of users) {
+  for (const username of legacyUsers) {
     const loginRes = await fetch(`${BASE_URL}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -31,18 +32,34 @@ async function main() {
         password: process.env.SEED_DEFAULT_PASSWORD || 'Warehouse#2026'
       })
     });
-
     if (!loginRes.ok) {
-      throw new Error(`Login failed for ${username} with status ${loginRes.status}: ${await loginRes.text()}`);
+      throw new Error(`Login failed for legacy ${username} (${loginRes.status})`);
     }
     const loginData = await loginRes.json();
-    if (!loginData.token) {
-      throw new Error(`No token returned for ${username}`);
+    if (!Array.isArray(loginData.permissions) || loginData.permissions.length === 0) {
+      throw new Error(`Login for ${username} did not return permissions array`);
     }
-    console.log(`[Smoke] Logged in as ${loginData.user?.username} (${loginData.user?.role})`);
-    if (username === 'manager1') {
-      managerToken = loginData.token;
+    console.log(`[Smoke] Logged in as ${loginData.user?.username} (${loginData.user?.role}) with ${loginData.permissions.length} perms`);
+    if (username === 'manager1') managerToken = loginData.token;
+  }
+
+  for (const username of newUsers) {
+    const loginRes = await fetch(`${BASE_URL}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username,
+        password: 'demo1234'
+      })
+    });
+    if (!loginRes.ok) {
+      throw new Error(`Login failed for new user ${username} (${loginRes.status})`);
     }
+    const loginData = await loginRes.json();
+    if (!Array.isArray(loginData.permissions) || loginData.permissions.length === 0) {
+      throw new Error(`Login for ${username} did not return permissions array`);
+    }
+    console.log(`[Smoke] Logged in as ${loginData.user?.username} (${loginData.user?.role}) with ${loginData.permissions.length} perms`);
   }
 
   // 3. List orders using manager token

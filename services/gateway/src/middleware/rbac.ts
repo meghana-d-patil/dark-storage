@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { DomainError, Role } from '@dark-storage/shared';
+import { DomainError, Role, can } from '@dark-storage/shared';
 
 export function rbacMiddleware(allowedRoles: Role[]): (req: Request, res: Response, next: NextFunction) => void {
   return (req: Request, res: Response, next: NextFunction) => {
@@ -14,3 +14,18 @@ export function rbacMiddleware(allowedRoles: Role[]): (req: Request, res: Respon
     next();
   };
 }
+
+export function requirePerm(perm: string): (req: Request, res: Response, next: NextFunction) => void {
+  return (req: Request, res: Response, next: NextFunction) => {
+    if (!req.user) {
+      throw new DomainError('UNAUTHENTICATED', 'Authentication required');
+    }
+
+    if (!can({ role: req.user.role as Role }, perm)) {
+      throw new DomainError('FORBIDDEN', `Permission '${perm}' required for this action`);
+    }
+
+    next();
+  };
+}
+

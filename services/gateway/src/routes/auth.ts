@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import jwt from 'jsonwebtoken';
-import { loginRequestSchema } from '@dark-storage/shared';
+import { loginRequestSchema, Role, ROLE_PERMISSIONS } from '@dark-storage/shared';
 import { config } from '../config.js';
 import { callEngine3 } from '../clients/engine3.js';
 import { authMiddleware } from '../middleware/auth.js';
@@ -33,6 +33,8 @@ authRouter.post('/api/auth/login', async (req, res, next) => {
       { expiresIn: '8h' }
     );
 
+    const permissions = ROLE_PERMISSIONS[user.role as Role] || [];
+
     res.json({
       token,
       user: {
@@ -40,7 +42,8 @@ authRouter.post('/api/auth/login', async (req, res, next) => {
         username: user.username,
         display_name: user.display_name,
         role: user.role
-      }
+      },
+      permissions
     });
   } catch (err) {
     next(err);
@@ -48,9 +51,17 @@ authRouter.post('/api/auth/login', async (req, res, next) => {
 });
 
 authRouter.get('/api/auth/me', authMiddleware, (req, res) => {
+  const permissions = ROLE_PERMISSIONS[req.user!.role as Role] || [];
   res.json({
     id: req.user!.id,
     display_name: req.user!.name,
-    role: req.user!.role
+    role: req.user!.role,
+    user: {
+      id: req.user!.id,
+      username: req.user!.name,
+      display_name: req.user!.name,
+      role: req.user!.role
+    },
+    permissions
   });
 });

@@ -24,32 +24,41 @@ export function applyMigrations(db: Database.Database, dir: string): { applied: 
   let applied = 0;
   let skipped = 0;
 
-  for (const file of files) {
-    const fullPath = path.join(dir, file);
-    const content = fs.readFileSync(fullPath, 'utf8');
-    const checksum = crypto.createHash('sha256').update(content, 'utf8').digest('hex');
-    const version = file.split('_')[0] || file;
+  const prevFk = db.pragma('foreign_keys', { simple: true });
+  db.pragma('foreign_keys = OFF');
 
-    const row = db.prepare('SELECT checksum FROM schema_migrations WHERE version = ?').get(version) as { checksum: string } | undefined;
+  try {
+    for (const file of files) {
+      const fullPath = path.join(dir, file);
+      const content = fs.readFileSync(fullPath, 'utf8');
+      const checksum = crypto.createHash('sha256').update(content, 'utf8').digest('hex');
+      const version = file.split('_')[0] || file;
 
-    if (row) {
-      if (row.checksum !== checksum) {
-        throw new Error(`MIGRATION_CHECKSUM_MISMATCH: Migration ${file} checksum mismatch`);
+      const row = db.prepare('SELECT checksum FROM schema_migrations WHERE version = ?').get(version) as { checksum: string } | undefined;
+
+      if (row) {
+        if (row.checksum !== checksum) {
+          throw new Error(`MIGRATION_CHECKSUM_MISMATCH: Migration ${file} checksum mismatch`);
+        }
+        skipped++;
+        continue;
       }
-      skipped++;
-      continue;
+
+      const tx = db.transaction(() => {
+        db.exec(content);
+        db.prepare(`
+          INSERT INTO schema_migrations (version, name, checksum)
+          VALUES (?, ?, ?)
+        `).run(version, file, checksum);
+      });
+
+      tx();
+      applied++;
     }
-
-    const tx = db.transaction(() => {
-      db.exec(content);
-      db.prepare(`
-        INSERT INTO schema_migrations (version, name, checksum)
-        VALUES (?, ?, ?)
-      `).run(version, file, checksum);
-    });
-
-    tx();
-    applied++;
+  } finally {
+    if (prevFk) {
+      db.pragma('foreign_keys = ON');
+    }
   }
 
   return { applied, skipped };

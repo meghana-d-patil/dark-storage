@@ -8,25 +8,44 @@ export function seedBase(db: Database.Database): void {
   }
 
   const defaultPassword = process.env.SEED_DEFAULT_PASSWORD || 'Warehouse#2026';
-  const passwordHash = bcrypt.hashSync(defaultPassword, 10);
+  const legacyHash = bcrypt.hashSync(defaultPassword, 10);
+  const demoHash = bcrypt.hashSync('demo1234', 10);
+  const pinHash = bcrypt.hashSync('1111', 10);
 
   const tx = db.transaction(() => {
     // 1. Users
     const users = [
-      { username: 'manager1', display_name: 'Manager', role: 'MANAGER' },
-      { username: 'operator1', display_name: 'Operator', role: 'OPERATOR' },
-      { username: 'picker1', display_name: 'Picker', role: 'PICKER' },
-      { username: 'picker2', display_name: 'Picker 2', role: 'PICKER' },
-      { username: 'staff1', display_name: 'Staff', role: 'STAFF' }
+      // Standard demo accounts (password: demo1234, pin: 1111)
+      { username: 'admin', display_name: 'System Admin', role: 'ADMIN', pass: demoHash, badge: 'BADGE-ADMIN', pin: pinHash, zones: '[]', shift: 'MORNING' },
+      { username: 'manager', display_name: 'Warehouse Manager', role: 'MANAGER', pass: demoHash, badge: 'BADGE-MGR', pin: pinHash, zones: '[]', shift: 'MORNING' },
+      { username: 'operator1', display_name: 'Lead Operator', role: 'OPERATOR', pass: demoHash, badge: 'BADGE-OP1', pin: pinHash, zones: '[]', shift: 'MORNING' },
+      { username: 'operator2', display_name: 'Floor Operator 2', role: 'OPERATOR', pass: demoHash, badge: 'BADGE-OP2', pin: pinHash, zones: '[]', shift: 'EVENING' },
+      { username: 'picker1', display_name: 'Zone 1 Picker', role: 'PICKER', pass: demoHash, badge: 'BADGE-PK1', pin: pinHash, zones: JSON.stringify(['Z1']), shift: 'MORNING' },
+      { username: 'picker2', display_name: 'Multi-Zone Picker', role: 'PICKER', pass: demoHash, badge: 'BADGE-PK2', pin: pinHash, zones: JSON.stringify(['Z1', 'Z2']), shift: 'MORNING' },
+      { username: 'picker3', display_name: 'Zone 2 Picker', role: 'PICKER', pass: demoHash, badge: 'BADGE-PK3', pin: pinHash, zones: JSON.stringify(['Z2']), shift: 'EVENING' },
+      { username: 'packer1', display_name: 'Packing Bench Staff', role: 'STAFF', pass: demoHash, badge: 'BADGE-STF1', pin: pinHash, zones: '[]', shift: 'MORNING' },
+      { username: 'dispatch1', display_name: 'Dispatch Rider Handover', role: 'DISPATCH', pass: demoHash, badge: 'BADGE-DSP1', pin: pinHash, zones: '[]', shift: 'MORNING' },
+      { username: 'auditor1', display_name: 'Compliance Auditor', role: 'AUDITOR', pass: demoHash, badge: 'BADGE-AUD1', pin: pinHash, zones: '[]', shift: 'MORNING' },
+      // Keep existing seeded legacy accounts working
+      { username: 'manager1', display_name: 'Manager 1', role: 'MANAGER', pass: legacyHash, badge: 'BADGE-MGR1', pin: pinHash, zones: '[]', shift: 'MORNING' },
+      { username: 'staff1', display_name: 'Staff 1', role: 'STAFF', pass: legacyHash, badge: 'BADGE-STF2', pin: pinHash, zones: '[]', shift: 'MORNING' }
     ];
 
-    const insertUser = db.prepare(`
-      INSERT INTO users (username, display_name, password_hash, role, active)
-      VALUES (?, ?, ?, ?, 1)
-      ON CONFLICT(username) DO NOTHING
+    const upsertUser = db.prepare(`
+      INSERT INTO users (username, display_name, password_hash, role, badge_id, pin_hash, zones, shift, active)
+      VALUES (@username, @display_name, @pass, @role, @badge, @pin, @zones, @shift, 1)
+      ON CONFLICT(username) DO UPDATE SET
+        display_name = excluded.display_name,
+        password_hash = excluded.password_hash,
+        role = excluded.role,
+        badge_id = excluded.badge_id,
+        pin_hash = excluded.pin_hash,
+        zones = excluded.zones,
+        shift = excluded.shift,
+        active = 1
     `);
     for (const u of users) {
-      insertUser.run(u.username, u.display_name, passwordHash, u.role);
+      upsertUser.run(u);
     }
 
     // 2. Products

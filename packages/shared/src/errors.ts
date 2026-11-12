@@ -57,3 +57,64 @@ export class DomainError extends Error {
     this.details = details;
   }
 }
+
+export const ERROR_STATUS_MAP: Record<string, number> = {
+  AUTH_REQUIRED: 401,
+  TOKEN_EXPIRED: 401,
+  FORBIDDEN: 403,
+  ENDPOINT_REMOVED: 410,
+  VALIDATION_FAILED: 400,
+  IDEMPOTENCY_KEY_REQUIRED: 400,
+  NOT_FOUND: 404,
+  STATE_CONFLICT: 409,
+  VERSION_CONFLICT: 409,
+  DUPLICATE: 409,
+  MISSION_NOT_OWNED: 403,
+  MISSION_LEASE_EXPIRED: 409,
+  ACTIVE_MISSION_EXISTS: 409,
+  NO_MISSION_AVAILABLE: 404,
+  TOTE_IN_USE: 409,
+  SCAN_WRONG_BIN: 422,
+  SCAN_WRONG_ITEM: 422,
+  SCAN_WRONG_TOTE: 422,
+  SCAN_OUT_OF_SEQUENCE: 422,
+  SCAN_QTY_EXCEEDS: 422,
+  ORDER_NOT_PICKED: 409,
+  PACK_ITEM_NOT_IN_ORDER: 422,
+  PACK_ITEM_OVERSCAN: 422,
+  PACK_INCOMPLETE: 422,
+  WEIGHT_MISMATCH: 422,
+  SLOT_MISMATCH: 422,
+  OTP_INVALID: 422,
+  OTP_LOCKED: 409,
+  SELF_APPROVAL_FORBIDDEN: 403,
+  ADJ_NEEDS_ADMIN: 403,
+  REASON_REQUIRED: 400,
+  NEGATIVE_BALANCE: 422,
+  LOT_MIX: 422,
+  BIN_LOCKED: 409,
+  BIN_FROZEN: 409,
+  COUNTER_MUST_DIFFER: 409,
+  SHELF_LIFE_TOO_SHORT: 422,
+  PO_MISMATCH: 422,
+  ORDER_CANCEL_NEEDS_PUTBACK: 409,
+  DEVICE_NOT_ALLOWED: 403,
+  RATE_LIMITED: 429,
+  LEDGER_IMMUTABLE: 422,
+  AUDIT_IMMUTABLE: 422,
+  INTERNAL_ERROR: 500
+};
+
+export class AppError extends Error {
+  public readonly code: string;
+  public readonly status: number;
+  public readonly details?: any;
+
+  constructor(code: string, status?: number, message?: string, details?: any) {
+    super(message || code);
+    this.name = 'AppError';
+    this.code = code;
+    this.status = status || ERROR_STATUS_MAP[code] || 500;
+    this.details = details;
+  }
+}

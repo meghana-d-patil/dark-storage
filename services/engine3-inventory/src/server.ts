@@ -23,6 +23,8 @@ import { createPickingRouter } from './routes/picking.js';
 import { createPackingRouter } from './routes/packing.js';
 import { createDashboardRouter } from './routes/dashboard.js';
 import { createOutboxRouter } from './routes/outbox.js';
+import { createConfigRouter } from './routes/config.js';
+import { createActorFromHeaders } from './middleware/rbac.js';
 
 export function createApp(db: Database.Database): Express {
   const app = express();
@@ -33,6 +35,8 @@ export function createApp(db: Database.Database): Express {
 
   // Protected internal routes
   app.use(internalAuth);
+  app.use(createActorFromHeaders(db));
+  app.use(createConfigRouter(db));
   app.use(createAuthRouter(db));
   app.use(createProductsRouter(db));
   app.use(createIntegrityRouter(db));
