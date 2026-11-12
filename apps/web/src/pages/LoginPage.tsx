@@ -5,19 +5,17 @@ import { useAuthStore } from '../stores/authStore.js';
 import { AuthResponse } from '@dark-storage/shared';
 
 function getRoleRedirect(role: string): string {
-  // Target pages arrive in P5/P6/P7/P12; until then redirect to '/'
-  // TODO (P2-T3): when /floor/pick, /floor/pack, /floor/operator, /floor/dispatch, /audit exist, update redirects
   switch (role) {
     case 'PICKER':
-      return '/'; // Future: /floor/pick
+      return '/floor/pick';
     case 'STAFF':
-      return '/'; // Future: /floor/pack
+      return '/'; // Future P6: /floor/pack
     case 'OPERATOR':
-      return '/'; // Future: /floor/operator
+      return '/'; // Future P7: /floor/operator
     case 'DISPATCH':
-      return '/'; // Future: /floor/dispatch
+      return '/'; // Future P6: /floor/dispatch
     case 'AUDITOR':
-      return '/'; // Future: /audit
+      return '/audit';
     default:
       return '/';
   }

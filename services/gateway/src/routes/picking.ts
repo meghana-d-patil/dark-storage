@@ -8,6 +8,99 @@ export const pickStopsRouter = Router();
 
 pickStopsRouter.use(authMiddleware);
 
+// POST /api/pick-stops/:stop_ref/scan-bin (pick:execute)
+pickStopsRouter.post(
+  '/:stop_ref/scan-bin',
+  requirePerm('pick:execute'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const key = (req.headers['idempotency-key'] as string) || (req.headers['x-idempotency-key'] as string);
+      if (!key) {
+        throw new DomainError('IDEMPOTENCY_KEY_REQUIRED', 'Idempotency-Key header is required');
+      }
+
+      const actor = req.user
+        ? { id: req.user.id, role: req.user.role, username: req.user.username, display_name: req.user.name }
+        : null;
+
+      const result = await callEngine3({
+        method: 'POST',
+        path: `/internal/v1/pick-stops/${encodeURIComponent(req.params.stop_ref)}/scan-bin`,
+        requestId: req.requestId,
+        actor,
+        body: req.body,
+        idempotencyKey: key,
+      });
+
+      res.status(result.status).json(result.data);
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+// POST /api/pick-stops/:stop_ref/scan-item (pick:execute)
+pickStopsRouter.post(
+  '/:stop_ref/scan-item',
+  requirePerm('pick:execute'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const key = (req.headers['idempotency-key'] as string) || (req.headers['x-idempotency-key'] as string);
+      if (!key) {
+        throw new DomainError('IDEMPOTENCY_KEY_REQUIRED', 'Idempotency-Key header is required');
+      }
+
+      const actor = req.user
+        ? { id: req.user.id, role: req.user.role, username: req.user.username, display_name: req.user.name }
+        : null;
+
+      const result = await callEngine3({
+        method: 'POST',
+        path: `/internal/v1/pick-stops/${encodeURIComponent(req.params.stop_ref)}/scan-item`,
+        requestId: req.requestId,
+        actor,
+        body: req.body,
+        idempotencyKey: key,
+      });
+
+      res.status(result.status).json(result.data);
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+// POST /api/pick-stops/:stop_ref/scan-tote (pick:execute)
+pickStopsRouter.post(
+  '/:stop_ref/scan-tote',
+  requirePerm('pick:execute'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const key = (req.headers['idempotency-key'] as string) || (req.headers['x-idempotency-key'] as string);
+      if (!key) {
+        throw new DomainError('IDEMPOTENCY_KEY_REQUIRED', 'Idempotency-Key header is required');
+      }
+
+      const actor = req.user
+        ? { id: req.user.id, role: req.user.role, username: req.user.username, display_name: req.user.name }
+        : null;
+
+      const result = await callEngine3({
+        method: 'POST',
+        path: `/internal/v1/pick-stops/${encodeURIComponent(req.params.stop_ref)}/scan-tote`,
+        requestId: req.requestId,
+        actor,
+        body: req.body,
+        idempotencyKey: key,
+      });
+
+      res.status(result.status).json(result.data);
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
 // POST /api/pick-stops/:stop_ref/confirm - D11 REMOVED
 pickStopsRouter.post('/:stop_ref/confirm', async (_req: Request, res: Response) => {
   res.status(410).json({

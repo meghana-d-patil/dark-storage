@@ -15,12 +15,16 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction):
       sub: string | number;
       role: string;
       name: string;
+      username?: string;
+      zones?: string[];
     };
 
     req.user = {
       id: Number(decoded.sub),
       role: decoded.role,
-      name: decoded.name
+      name: decoded.name,
+      username: decoded.username || decoded.name,
+      zones: decoded.zones || []
     };
     next();
   } catch (err) {

@@ -44,15 +44,15 @@
 - [x] P4-T8 Property test
 
 ## Phase 5: Totes, claim, leases, floor tasks, 3-step picking (MUST)
-- [ ] P5-T1 Migration 015
-- [ ] P5-T2 Claim next mission
-- [ ] P5-T3 Heartbeat, release, force-unassign
-- [ ] P5-T4 Lease sweep job
-- [ ] P5-T5 Picker read endpoint
-- [ ] P5-T6 Scan endpoints
-- [ ] P5-T7 Floor task endpoints (generic)
-- [ ] P5-T8 Web: picker screens (plain)
-- [ ] P5-T9 Tests
+- [x] P5-T1 Migration 015
+- [x] P5-T2 Claim next mission
+- [x] P5-T3 Heartbeat, release, force-unassign
+- [x] P5-T4 Lease sweep job
+- [x] P5-T5 Picker read endpoint
+- [x] P5-T6 Scan endpoints
+- [x] P5-T7 Floor task endpoints (generic)
+- [x] P5-T8 Web: picker screens (plain)
+- [x] P5-T9 Tests
 
 ## Phase 6: Packing and dispatch (MUST)
 - [ ] P6-T1 Migration 016 orders rebuild
@@ -80,6 +80,6 @@
 
 ---
 TODO:
-- [ ] P2-T3 role redirects: update role redirects in `LoginPage.tsx` when `/floor/pick`, `/floor/pack`, `/floor/operator`, `/floor/dispatch`, `/audit` are implemented in P5/P6/P7/P12.
+- [ ] P2-T3 role redirects: update role redirects in `LoginPage.tsx` when `/floor/pack`, `/floor/operator`, `/floor/dispatch`, `/audit` are implemented in P6/P7/P12.
 
-next: P5-T1 Migration 015
+next: P6-T1 Migration 016 orders rebuild

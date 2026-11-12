@@ -45,7 +45,8 @@ export function sortObjectKeys(obj: any): any {
 
 export function appendAudit(db: Database.Database, input: AppendAuditInput): { id: number; seq: number; row_hash: string } {
   const occurredAt = input.occurredAt || new Date().toISOString();
-  const actorId = input.actor?.id !== undefined && input.actor?.id !== null ? Number(input.actor.id) : null;
+  const rawActorId = input.actor?.id !== undefined && input.actor?.id !== null ? Number(input.actor.id) : null;
+  const actorId = rawActorId && rawActorId > 0 ? rawActorId : null;
   const actorRole = input.actor?.role || null;
   const requestId = input.requestId || null;
 

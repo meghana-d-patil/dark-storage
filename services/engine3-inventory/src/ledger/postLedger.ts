@@ -256,8 +256,8 @@ export function postLedger(
       const locKey = `BIN:${binCode}`;
       const bal = sumStmt.get(locKey) as { total_qty: number; sku: string | null; lot_id: string | null } | undefined;
       const totalQty = bal ? bal.total_qty : 0;
-      const binSku = totalQty > 0 ? bal.sku : null;
-      const binLot = totalQty > 0 ? bal.lot_id : null;
+      const binSku = totalQty > 0 && bal ? bal.sku : null;
+      const binLot = totalQty > 0 && bal ? bal.lot_id : null;
 
       upsertInvStmt.run({
         bin_code: binCode,

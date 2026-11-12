@@ -98,9 +98,11 @@ export const AppShell: React.FC<AppShellProps> = ({ navLinks }) => {
   const canTasks = useCan('control:view');
   const canAdmin = useCan(['user:manage', 'control:view']);
   const canAudit = useCan('audit:view');
+  const canPickExecute = useCan('pick:execute');
 
   const defaultLinks = [
     { to: '/', label: 'Home', testId: 'nav-home', hotkey: 'Alt+H' },
+    ...(canPickExecute ? [{ to: '/floor/pick', label: 'Floor Pick', testId: 'nav-floor-pick' }] : []),
     ...(canReceiving ? [{ to: '/receiving', label: 'Receiving', testId: 'nav-receiving' }] : []),
     ...(canInventory ? [{ to: '/inventory', label: 'Inventory', testId: 'nav-inventory', hotkey: 'Alt+I' }] : []),
     ...(canOrders ? [{ to: '/orders', label: 'Orders', testId: 'nav-orders', hotkey: 'Alt+O' }] : []),

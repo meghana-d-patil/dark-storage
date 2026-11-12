@@ -43,17 +43,23 @@ export const ERROR_CODES = {
 export type ErrorCode = keyof typeof ERROR_CODES;
 
 export class DomainError extends Error {
-  public readonly code: ErrorCode;
+  public readonly code: string;
   public readonly httpStatus: number;
   public readonly details?: Record<string, unknown>;
 
-  constructor(code: ErrorCode, message?: string, details?: Record<string, unknown>) {
-    const meta = ERROR_CODES[code] || ERROR_CODES.INTERNAL_ERROR;
-    const desc = message || meta.message;
+  constructor(
+    code: string,
+    message?: string,
+    details?: Record<string, unknown>,
+    httpStatus?: number
+  ) {
+    const meta = (ERROR_CODES as Record<string, any>)[code];
+    const status = httpStatus || meta?.http || ERROR_STATUS_MAP[code] || 400;
+    const desc = message || meta?.message || code;
     super(`${code}: ${desc}`);
     this.name = 'DomainError';
     this.code = code;
-    this.httpStatus = meta.http;
+    this.httpStatus = status;
     this.details = details;
   }
 }

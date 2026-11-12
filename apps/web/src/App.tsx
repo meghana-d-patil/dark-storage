@@ -19,6 +19,7 @@ import { ExceptionsPage } from './pages/ExceptionsPage.js';
 import { PackingPage } from './pages/PackingPage.js';
 import { AdminPage } from './pages/AdminPage.js';
 import { AuditPage } from './pages/AuditPage.js';
+import { PickFloorPage } from './pages/floor/PickFloorPage.js';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -58,6 +59,7 @@ export const App: React.FC = () => {
             <Route path="/tasks" element={<RequirePerm perm="control:view"><TasksPage /></RequirePerm>} />
             <Route path="/admin" element={<RequirePerm perm={['user:manage', 'control:view']}><AdminPage /></RequirePerm>} />
             <Route path="/audit" element={<RequirePerm perm="audit:view"><AuditPage /></RequirePerm>} />
+            <Route path="/floor/pick" element={<RequirePerm perm="pick:execute"><PickFloorPage /></RequirePerm>} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
