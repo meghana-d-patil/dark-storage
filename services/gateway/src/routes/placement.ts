@@ -7,14 +7,14 @@ import {
 import { callEngine3 } from '../clients/engine3.js';
 import { callEngine2 } from '../clients/engine2.js';
 import { authMiddleware } from '../middleware/auth.js';
-import { requirePerm } from '../middleware/rbac.js';
+import { rbacMiddleware } from '../middleware/rbac.js';
 
 export const placementRouter = Router();
 
 placementRouter.use(authMiddleware);
 
-// POST /api/placement/recommend (putaway:execute)
-placementRouter.post('/recommend', requirePerm('putaway:execute'), async (req: Request, res: Response, next: NextFunction) => {
+// POST /api/placement/recommend (MANAGER, OPERATOR)
+placementRouter.post('/recommend', rbacMiddleware(['MANAGER', 'OPERATOR']), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const parsed = RecommendPlacementSchema.parse(req.body);
 
@@ -66,8 +66,8 @@ placementRouter.post('/recommend', requirePerm('putaway:execute'), async (req: R
   }
 });
 
-// POST /api/placement/validate (putaway:execute)
-placementRouter.post('/validate', requirePerm('putaway:execute'), async (req: Request, res: Response, next: NextFunction) => {
+// POST /api/placement/validate (MANAGER, OPERATOR)
+placementRouter.post('/validate', rbacMiddleware(['MANAGER', 'OPERATOR']), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const parsed = ValidatePlacementSchema.parse(req.body);
     let effectiveSku = parsed.sku;

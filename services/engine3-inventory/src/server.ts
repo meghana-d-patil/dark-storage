@@ -23,21 +23,8 @@ import { createPickingRouter } from './routes/picking.js';
 import { createPackingRouter } from './routes/packing.js';
 import { createDashboardRouter } from './routes/dashboard.js';
 import { createOutboxRouter } from './routes/outbox.js';
-import { createConfigRouter } from './routes/config.js';
-import { createAuditRouter } from './routes/audit.js';
-import { createLedgerRouter } from './routes/ledger.js';
-import { createPickerRouter } from './routes/picker.js';
-import { createDispatchRouter } from './routes/dispatch.js';
-import { createExceptionsRouter } from './routes/exceptions.js';
-import { createAdjustmentsRouter } from './routes/adjustments.js';
-import { createActorFromHeaders } from './middleware/rbac.js';
-import { ensureAuditChain } from './audit/appendAudit.js';
-import { backfillOpeningLedger } from './ledger/backfillOpening.js';
-import { startBackgroundJobs } from './jobs/index.js';
 
 export function createApp(db: Database.Database): Express {
-  ensureAuditChain(db);
-  backfillOpeningLedger(db);
   const app = express();
   app.use(express.json({ limit: '1mb' }));
 
@@ -46,11 +33,6 @@ export function createApp(db: Database.Database): Express {
 
   // Protected internal routes
   app.use(internalAuth);
-  app.use(createActorFromHeaders(db));
-  app.use(createConfigRouter(db));
-  app.use(createAuditRouter(db));
-  app.use('/internal/v1', createLedgerRouter(db));
-  app.use('/internal/v1', createPickerRouter(db));
   app.use(createAuthRouter(db));
   app.use(createProductsRouter(db));
   app.use(createIntegrityRouter(db));
@@ -63,9 +45,6 @@ export function createApp(db: Database.Database): Express {
   app.use(createMissionsRouter(db));
   app.use(createPickingRouter(db));
   app.use(createPackingRouter(db));
-  app.use(createDispatchRouter(db));
-  app.use(createExceptionsRouter(db));
-  app.use(createAdjustmentsRouter(db));
   app.use(createDashboardRouter(db));
   app.use(createOutboxRouter(db));
 
@@ -95,13 +74,11 @@ if (isMain) {
   }
 
   const app = createApp(db);
-  const stopJobs = startBackgroundJobs(db);
   const server = app.listen(config.PORT, config.HOST, () => {
     console.log(`Engine 3 (Inventory) listening on http://${config.HOST}:${config.PORT}`);
   });
 
   const cleanup = () => {
-    stopJobs();
     server.close(() => {
       db.close();
       process.exit(0);

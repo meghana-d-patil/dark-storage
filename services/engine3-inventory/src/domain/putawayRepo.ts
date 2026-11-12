@@ -1,8 +1,8 @@
 import Database from 'better-sqlite3';
 import { DomainError, shelfOfBin } from '@dark-storage/shared';
 import { runTx } from '../db/tx.js';
-import { recordMovement, validateBinReceivable } from './inventoryRepo.js';
-import { postLedger, ensureLot } from '../ledger/postLedger.js';
+import { stockIn, stockOut, recordMovement } from './inventoryRepo.js';
+
 import { nextRef } from './ids.js';
 import { recordAudit } from './audit.js';
 import { insertOutboxEvent } from './outbox.js';
@@ -68,47 +68,8 @@ export function executePutaway(db: Database.Database, params: ExecutePutawayPara
   // 3. Selection mode
   const mode = recommended_bin && recommended_bin === dest_bin ? 'RECOMMENDED' : 'MANUAL';
 
-  // 4. Resolve lot and validate destination bin
-  const lotRow = db
-    .prepare(
-      `
-    SELECT lot_id FROM location_balances
-    WHERE location_key = ? AND sku = ? AND qty >= ?
-    ORDER BY qty DESC LIMIT 1
-  `
-    )
-    .get(`STAGED:${line.receipt_ref}`, line.sku, qty) as { lot_id: string } | undefined;
-
-  const lotId = lotRow?.lot_id || `LOT-LEGACY-${line.sku}`;
-  ensureLot(db, {
-    lotId,
-    sku: line.sku,
-    lotCode: line.receipt_ref,
-    poRef: line.receipt_ref,
-  });
-
-  validateBinReceivable(db, dest_bin, line.sku, qty, lotId);
-
-  // Generate Putaway Ref
-  const putawayRef = nextRef(db, 'putaway');
-
-  // Post to Ledger: STAGED -> BIN
-  postLedger(
-    db,
-    [
-      {
-        sku: line.sku,
-        lotId,
-        qty,
-        from: `STAGED:${line.receipt_ref}`,
-        to: `BIN:${dest_bin}`,
-        type: 'PUTAWAY',
-        refType: 'PUTAWAY',
-        refId: putawayRef,
-      },
-    ],
-    { id: String(actor.id) }
-  );
+  // 4. stockIn (full revalidation)
+  stockIn(db, { bin: dest_bin, sku: line.sku, qty });
 
   // Hook for testing rollback / afterStep
   if (hooks?.afterStep) {
@@ -126,7 +87,8 @@ export function executePutaway(db: Database.Database, params: ExecutePutawayPara
     throw new DomainError('INSUFFICIENT_STAGED_STOCK', 'Failed to update staged quantity on receipt line');
   }
 
-  // 6. Record Movement
+  // 6. Generate Putaway Ref and Record Movement
+  const putawayRef = nextRef(db, 'putaway');
   const movementRef = recordMovement(db, {
     type: 'PUTAWAY',
     sku: line.sku,
@@ -284,25 +246,13 @@ export function executeRelocate(db: Database.Database, params: ExecuteRelocatePa
 
   const sku = inv.sku;
 
-  const lotRow = db
-    .prepare(
-      `
-    SELECT lot_id FROM location_balances
-    WHERE location_key = ? AND sku = ? AND qty > 0
-    ORDER BY qty DESC LIMIT 1
-  `
-    )
-    .get(`BIN:${from_bin}`, sku) as { lot_id: string } | undefined;
+  // 1. Stock out from source (consumeReserved = false)
+  stockOut(db, { bin: from_bin, qty, consumeReserved: false });
 
-  const lotId = lotRow?.lot_id || `LOT-LEGACY-${sku}`;
-  ensureLot(db, {
-    lotId,
-    sku,
-  });
+  // 2. Stock in to dest (full revalidation)
+  stockIn(db, { bin: to_bin, sku, qty });
 
-  validateBinReceivable(db, to_bin, sku, qty, lotId);
-
-  // 1. Record movement
+  // 3. Record movement
   const movRef = recordMovement(db, {
     type: 'RELOCATE',
     sku,
@@ -312,24 +262,6 @@ export function executeRelocate(db: Database.Database, params: ExecuteRelocatePa
     related: { type: 'RELOCATION', ref: '' },
     actorId: actor.id
   });
-
-  // 2. Post to ledger: BIN -> BIN
-  postLedger(
-    db,
-    [
-      {
-        sku,
-        lotId,
-        qty,
-        from: `BIN:${from_bin}`,
-        to: `BIN:${to_bin}`,
-        type: 'RELOCATE',
-        refType: 'RELOCATION',
-        refId: movRef,
-      },
-    ],
-    { id: String(actor.id) }
-  );
 
   // 4. Audit & events
   recordAudit(db, {

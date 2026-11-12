@@ -1,7 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { DomainError, createPutawaySchema, shelfOfBin } from '@dark-storage/shared';
 import { authMiddleware } from '../middleware/auth.js';
-import { requirePerm } from '../middleware/rbac.js';
+import { rbacMiddleware } from '../middleware/rbac.js';
 import { runViaEngine1 } from '../clients/engine1.js';
 import { callEngine3 } from '../clients/engine3.js';
 
@@ -9,8 +9,8 @@ export const putawaysRouter = Router();
 
 putawaysRouter.use(authMiddleware);
 
-// POST /api/putaways (putaway:execute)
-putawaysRouter.post('/', requirePerm('putaway:execute'), async (req: Request, res: Response, next: NextFunction) => {
+// POST /api/putaways (MANAGER, OPERATOR)
+putawaysRouter.post('/', rbacMiddleware(['MANAGER', 'OPERATOR']), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const key = (req.headers['idempotency-key'] as string) || (req.headers['x-idempotency-key'] as string);
     if (!key) {
@@ -43,8 +43,8 @@ putawaysRouter.post('/', requirePerm('putaway:execute'), async (req: Request, re
   }
 });
 
-// GET /api/putaways?receipt=&sku=&page= (inventory:view)
-putawaysRouter.get('/', requirePerm('inventory:view'), async (req: Request, res: Response, next: NextFunction) => {
+// GET /api/putaways?receipt=&sku=&page=
+putawaysRouter.get('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const query = new URLSearchParams(req.query as Record<string, string>).toString();
     const result = await callEngine3({

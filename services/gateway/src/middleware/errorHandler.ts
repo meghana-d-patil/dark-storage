@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { ZodError } from 'zod';
-import { DomainError, AppError, StateError } from '@dark-storage/shared';
+import { DomainError } from '@dark-storage/shared';
 
 export function errorHandler(
   err: unknown,
@@ -13,44 +13,24 @@ export function errorHandler(
 
   if (err instanceof DomainError) {
     res.status(err.httpStatus).json({
-      error: err.message,
-      code: err.code,
-      details: err.details,
-      request_id: requestId
-    });
-    return;
-  }
-
-  if (err instanceof AppError) {
-    res.status(err.status).json({
-      error: err.message,
-      code: err.code,
-      details: err.details,
-      request_id: requestId
-    });
-    return;
-  }
-
-  if (err instanceof StateError) {
-    res.status(err.status).json({
-      error: err.message,
-      code: err.code,
-      details: {
-        machine: err.machine,
-        fromState: err.fromState,
-        event: err.event
-      },
-      request_id: requestId
+      error: {
+        code: err.code,
+        message: err.message,
+        details: err.details,
+        request_id: requestId
+      }
     });
     return;
   }
 
   if (err instanceof ZodError) {
     res.status(400).json({
-      error: 'Validation failed',
-      code: 'VALIDATION_ERROR',
-      details: { issues: err.issues },
-      request_id: requestId
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Validation failed',
+        details: { issues: err.issues },
+        request_id: requestId
+      }
     });
     return;
   }
@@ -58,8 +38,10 @@ export function errorHandler(
   console.error(`[Gateway Error] [${requestId}]`, err);
 
   res.status(500).json({
-    error: 'Internal server error',
-    code: 'INTERNAL_ERROR',
-    request_id: requestId
+    error: {
+      code: 'INTERNAL_ERROR',
+      message: 'Internal server error',
+      request_id: requestId
+    }
   });
 }

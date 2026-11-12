@@ -11,38 +11,32 @@ export interface AuthUser {
 interface AuthState {
   token: string | null;
   user: AuthUser | null;
-  permissions: string[];
-  login: (token: string, user: AuthUser, permissions?: string[]) => void;
+  login: (token: string, user: AuthUser) => void;
   logout: () => void;
 }
 
 const STORAGE_KEY = 'dark_storage_auth';
 
-function getInitialState(): { token: string | null; user: AuthUser | null; permissions: string[] } {
+function getInitialState(): { token: string | null; user: AuthUser | null } {
   try {
     const raw = sessionStorage.getItem(STORAGE_KEY);
     if (raw) {
-      const parsed = JSON.parse(raw);
-      return {
-        token: parsed.token || null,
-        user: parsed.user || null,
-        permissions: parsed.permissions || []
-      };
+      return JSON.parse(raw);
     }
   } catch {
     // ignore
   }
-  return { token: null, user: null, permissions: [] };
+  return { token: null, user: null };
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
   ...getInitialState(),
-  login: (token, user, permissions = []) => {
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ token, user, permissions }));
-    set({ token, user, permissions });
+  login: (token, user) => {
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ token, user }));
+    set({ token, user });
   },
   logout: () => {
     sessionStorage.removeItem(STORAGE_KEY);
-    set({ token: null, user: null, permissions: [] });
+    set({ token: null, user: null });
   }
 }));

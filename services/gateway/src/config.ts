@@ -31,7 +31,6 @@ loadRootEnv();
 
 const configSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
-  DEMO_MODE: z.coerce.boolean().default(true),
   JWT_SECRET: z.string().min(1).default('change-me-dev-only'),
   INTERNAL_TOKEN: z.string().min(1).default('change-me-internal'),
   GATEWAY_PORT: z.coerce.number().default(4000),
@@ -44,7 +43,6 @@ const configSchema = z.object({
 
 export const config = configSchema.parse({
   NODE_ENV: process.env.NODE_ENV,
-  DEMO_MODE: process.env.DEMO_MODE !== undefined ? process.env.DEMO_MODE : true,
   JWT_SECRET: process.env.JWT_SECRET,
   INTERNAL_TOKEN: process.env.INTERNAL_TOKEN,
   GATEWAY_PORT: process.env.GATEWAY_PORT || process.env.PORT || 4000,

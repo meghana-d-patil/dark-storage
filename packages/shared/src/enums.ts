@@ -1,33 +1,5 @@
-export { ROLES, type Role } from './permissions.js';
-
-export const REASON_CODES = [
-  'DAMAGED',
-  'EXPIRED',
-  'MISSING',
-  'FOUND',
-  'COUNT_VARIANCE',
-  'THEFT_SUSPECTED',
-  'MISPLACED',
-  'SUPPLIER_SHORT',
-  'CUSTOMER_CANCEL',
-  'STUCK_PICKER',
-  'OUT_OF_STOCK',
-  'BIN_FULL',
-  'BIN_BLOCKED',
-  'OTHER'
-] as const;
-export type ReasonCode = (typeof REASON_CODES)[number];
-
-export function requireReason(code: string, note?: string | null): void {
-  if (!code || !REASON_CODES.includes(code as ReasonCode)) {
-    throw new Error(`REASON_REQUIRED: Invalid or missing reason code '${code}'`);
-  }
-  if (code === 'OTHER') {
-    if (!note || note.trim().length < 10) {
-      throw new Error("REASON_REQUIRED: Reason 'OTHER' requires a note of at least 10 characters");
-    }
-  }
-}
+export const ROLES = ['MANAGER', 'OPERATOR', 'PICKER', 'STAFF'] as const;
+export type Role = (typeof ROLES)[number];
 
 export const PRIORITIES = ['LOW', 'NORMAL', 'HIGH', 'URGENT'] as const;
 export type Priority = (typeof PRIORITIES)[number];

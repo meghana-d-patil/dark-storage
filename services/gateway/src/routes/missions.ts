@@ -1,96 +1,15 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { DomainError } from '@dark-storage/shared';
 import { authMiddleware } from '../middleware/auth.js';
-import { requirePerm } from '../middleware/rbac.js';
+import { rbacMiddleware } from '../middleware/rbac.js';
 import { callEngine3 } from '../clients/engine3.js';
 
 export const missionsRouter = Router();
 
 missionsRouter.use(authMiddleware);
 
-// POST /api/missions/claim-next (mission:claim)
-missionsRouter.post('/claim-next', requirePerm('mission:claim'), async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const actor = req.user
-      ? { id: req.user.id, role: req.user.role, username: req.user.username, display_name: req.user.name }
-      : null;
-
-    const result = await callEngine3({
-      method: 'POST',
-      path: '/internal/v1/missions/claim-next',
-      requestId: req.requestId,
-      actor,
-    });
-
-    res.status(result.status).json(result.data);
-  } catch (err) {
-    next(err);
-  }
-});
-
-// POST /api/missions/:ref/heartbeat
-missionsRouter.post('/:ref/heartbeat', async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const actor = req.user
-      ? { id: req.user.id, role: req.user.role, username: req.user.username, display_name: req.user.name }
-      : null;
-
-    const result = await callEngine3({
-      method: 'POST',
-      path: `/internal/v1/missions/${encodeURIComponent(req.params.ref)}/heartbeat`,
-      requestId: req.requestId,
-      actor,
-    });
-
-    res.status(result.status).json(result.data);
-  } catch (err) {
-    next(err);
-  }
-});
-
-// POST /api/missions/:ref/release
-missionsRouter.post('/:ref/release', async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const actor = req.user
-      ? { id: req.user.id, role: req.user.role, username: req.user.username, display_name: req.user.name }
-      : null;
-
-    const result = await callEngine3({
-      method: 'POST',
-      path: `/internal/v1/missions/${encodeURIComponent(req.params.ref)}/release`,
-      requestId: req.requestId,
-      actor,
-    });
-
-    res.status(result.status).json(result.data);
-  } catch (err) {
-    next(err);
-  }
-});
-
-// POST /api/missions/:ref/force-unassign (mission:reassign)
-missionsRouter.post('/:ref/force-unassign', requirePerm('mission:reassign'), async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const actor = req.user
-      ? { id: req.user.id, role: req.user.role, username: req.user.username, display_name: req.user.name }
-      : null;
-
-    const result = await callEngine3({
-      method: 'POST',
-      path: `/internal/v1/missions/${encodeURIComponent(req.params.ref)}/force-unassign`,
-      requestId: req.requestId,
-      actor,
-      body: req.body,
-    });
-
-    res.status(result.status).json(result.data);
-  } catch (err) {
-    next(err);
-  }
-});
-
-// POST /api/missions/:ref/start (pick:execute)
-missionsRouter.post('/:ref/start', requirePerm('pick:execute'), async (req: Request, res: Response, next: NextFunction) => {
+// POST /api/missions/:ref/start (PICKER - own mission)
+missionsRouter.post('/:ref/start', rbacMiddleware(['PICKER', 'MANAGER']), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const key = (req.headers['idempotency-key'] as string) || (req.headers['x-idempotency-key'] as string);
     if (!key) {
@@ -117,8 +36,8 @@ missionsRouter.post('/:ref/start', requirePerm('pick:execute'), async (req: Requ
   }
 });
 
-// GET /api/missions?status=&picker_id=&page= (order:view or pick:execute)
-missionsRouter.get('/', requirePerm(['order:view', 'pick:execute']), async (req: Request, res: Response, next: NextFunction) => {
+// GET /api/missions?status=&picker_id=&page=
+missionsRouter.get('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const queryParams = new URLSearchParams(req.query as Record<string, string>);
 
@@ -139,8 +58,8 @@ missionsRouter.get('/', requirePerm(['order:view', 'pick:execute']), async (req:
   }
 });
 
-// GET /api/missions/:ref (order:view or pick:execute)
-missionsRouter.get('/:ref', requirePerm(['order:view', 'pick:execute']), async (req: Request, res: Response, next: NextFunction) => {
+// GET /api/missions/:ref
+missionsRouter.get('/:ref', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const result = await callEngine3<any>({
       method: 'GET',

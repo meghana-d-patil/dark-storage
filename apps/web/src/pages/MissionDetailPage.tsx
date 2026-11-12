@@ -3,7 +3,6 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch, ApiError } from '../api/client.js';
 import { useAuthStore } from '../stores/authStore.js';
-import { useCan } from '../hooks/useCan.js';
 import { MissionDto, PickStopDto } from '@dark-storage/shared';
 import { StatusBadge } from '../components/StatusBadge.js';
 import { BarcodeSvg } from '../components/BarcodeSvg.js';
@@ -13,7 +12,6 @@ export const MissionDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useAuthStore();
-  const canPick = useCan('pick:execute');
 
   const isPicker = user?.role === 'PICKER';
   const isManager = user?.role === 'MANAGER';
@@ -149,9 +147,9 @@ export const MissionDetailPage: React.FC = () => {
     );
   }
 
-  const isAssignedToMe = canPick && user && mission?.picker.id === user.id;
-  const canStart = mission?.status === 'ASSIGNED' && isAssignedToMe;
-  const isPickingActive = mission?.status === 'IN_PROGRESS' && isAssignedToMe;
+  const isAssignedToMe = isPicker && user && mission?.picker.id === user.id;
+  const canStart = mission?.status === 'ASSIGNED' && (isAssignedToMe || isManager);
+  const isPickingActive = mission?.status === 'IN_PROGRESS' && (isAssignedToMe || isManager);
 
   // Progress metrics
   const totalStops = mission.progress.total_stops;

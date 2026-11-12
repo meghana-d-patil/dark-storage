@@ -1,8 +1,7 @@
 import Database from 'better-sqlite3';
-import { appendAudit } from '../audit/appendAudit.js';
 
 export interface AuditParams {
-  actor: { id: number; role: string; username?: string } | null;
+  actor: { id: number; role: string } | null;
   action: string;
   entity_type: string;
   entity_id: string;
@@ -11,17 +10,25 @@ export interface AuditParams {
 }
 
 export function audit(db: Database.Database, params: AuditParams): void {
-  appendAudit(db, {
-    actor: params.actor,
-    action: params.action,
-    entityType: params.entity_type,
-    entityRef: params.entity_id,
-    before: params.details?.before,
-    after: params.details?.after,
-    note: params.details?.note ? String(params.details.note) : undefined,
-    reasonCode: params.details?.reason_code ? String(params.details.reason_code) : undefined,
-    requestId: params.request_id
-  });
+  db.prepare(`
+    INSERT INTO audit_log (
+      actor_user_id,
+      actor_role,
+      action,
+      entity_type,
+      entity_id,
+      details_json,
+      request_id
+    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    params.actor?.id ?? null,
+    params.actor?.role ?? null,
+    params.action,
+    params.entity_type,
+    params.entity_id,
+    JSON.stringify(params.details ?? {}),
+    params.request_id ?? null
+  );
 }
 
 export function recordAudit(
@@ -36,13 +43,23 @@ export function recordAudit(
     request_id?: string;
   }
 ): void {
-  appendAudit(db, {
-    actor: opts.actor_id ? { id: opts.actor_id, role: undefined } : null,
-    action: opts.action,
-    entityType: opts.entity_type,
-    entityRef: opts.entity_id,
-    before: opts.before,
-    after: opts.after,
-    requestId: opts.request_id
-  });
+  db.prepare(`
+    INSERT INTO audit_log (
+      actor_user_id,
+      actor_role,
+      action,
+      entity_type,
+      entity_id,
+      details_json,
+      request_id
+    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    opts.actor_id ?? null,
+    null,
+    opts.action,
+    opts.entity_type,
+    opts.entity_id,
+    JSON.stringify({ before: opts.before, after: opts.after }),
+    opts.request_id ?? null
+  );
 }

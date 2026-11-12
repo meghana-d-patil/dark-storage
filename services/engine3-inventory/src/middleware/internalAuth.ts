@@ -1,12 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
 import { config } from '../config.js';
-import { Role, ROLE_PERMISSIONS } from '@dark-storage/shared';
 
 export interface InternalActor {
   id: number;
-  username: string;
-  role: Role;
-  permissions: readonly string[];
+  role: string;
 }
 
 declare global {
@@ -37,14 +34,12 @@ export function internalAuth(req: Request, res: Response, next: NextFunction): v
   }
 
   const actorIdHeader = req.headers['x-actor-id'];
-  const actorRoleHeader = req.headers['x-actor-role'] as Role | undefined;
+  const actorRoleHeader = req.headers['x-actor-role'];
 
   if (actorIdHeader && actorRoleHeader) {
     req.actor = {
       id: parseInt(actorIdHeader as string, 10),
-      username: (req.headers['x-actor-username'] as string) || `user_${actorIdHeader}`,
-      role: actorRoleHeader,
-      permissions: ROLE_PERMISSIONS[actorRoleHeader] || []
+      role: actorRoleHeader as string
     };
   } else {
     req.actor = null;

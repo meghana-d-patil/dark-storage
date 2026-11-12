@@ -5,7 +5,6 @@ import { useAuthStore } from '../stores/authStore.js';
 import { useRealtime } from '../hooks/useRealtime.js';
 import { useRealtimeStore } from '../stores/realtimeStore.js';
 import { useHotkeys } from '../hooks/useHotkeys.js';
-import { useCan } from '../hooks/useCan.js';
 import { apiFetch } from '../api/client.js';
 import { AuthResponse } from '@dark-storage/shared';
 
@@ -14,13 +13,10 @@ interface AppShellProps {
 }
 
 const roleAccounts: Record<string, { username: string; label: string }> = {
-  ADMIN: { username: 'admin', label: 'Admin' },
   MANAGER: { username: 'manager1', label: 'Manager' },
   OPERATOR: { username: 'operator1', label: 'Operator' },
   PICKER: { username: 'picker1', label: 'Picker' },
-  STAFF: { username: 'staff1', label: 'Staff' },
-  DISPATCH: { username: 'dispatch1', label: 'Dispatch' },
-  AUDITOR: { username: 'auditor1', label: 'Auditor' }
+  STAFF: { username: 'staff1', label: 'Staff' }
 };
 
 export const AppShell: React.FC<AppShellProps> = ({ navLinks }) => {
@@ -68,18 +64,16 @@ export const AppShell: React.FC<AppShellProps> = ({ navLinks }) => {
     navigate('/login');
   };
 
-  const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true' || import.meta.env.DEV;
-
   const handleRoleSwitch = async (targetRole: string) => {
     const account = roleAccounts[targetRole];
     if (!account || account.username === user?.username || switchingRole) return;
     setSwitchingRole(true);
     try {
-      const resp = await apiFetch<AuthResponse>('/api/auth/dev-switch', {
+      const resp = await apiFetch<AuthResponse>('/api/auth/login', {
         method: 'POST',
-        body: JSON.stringify({ username: account.username })
+        body: JSON.stringify({ username: account.username, password: 'Warehouse#2026' })
       });
-      login(resp.token, resp.user, resp.permissions);
+      login(resp.token, resp.user);
       queryClient.clear();
       navigate('/');
     } catch (err) {
@@ -89,38 +83,22 @@ export const AppShell: React.FC<AppShellProps> = ({ navLinks }) => {
     }
   };
 
-  const canReceiving = useCan('inbound:receive');
-  const canInventory = useCan('inventory:view');
-  const canOrders = useCan('order:view');
-  const canPicking = useCan(['pick:execute', 'order:view']);
-  const canPacking = useCan(['pack:execute', 'order:view']);
-  const canExceptions = useCan(['exception:view', 'exception:raise']);
-  const canTasks = useCan('control:view');
-  const canAdmin = useCan(['user:manage', 'control:view']);
-  const canAudit = useCan('audit:view');
-  const canPickExecute = useCan('pick:execute');
-  const canPackExecute = useCan('pack:execute');
-  const canDispatchHandover = useCan('dispatch:handover');
-  const canOperatorFloor = useCan('floortask:claim');
-  const canAdjustments = useCan(['adjust:approve', 'adjust:approve_high', 'audit:view']);
+  const isReceivingRole = user?.role === 'MANAGER' || user?.role === 'OPERATOR';
+  const isPickingRole = user?.role === 'MANAGER' || user?.role === 'PICKER';
+  const isPackingRole = user?.role === 'MANAGER' || user?.role === 'STAFF';
+  const isManager = user?.role === 'MANAGER';
 
   const defaultLinks = [
     { to: '/', label: 'Home', testId: 'nav-home', hotkey: 'Alt+H' },
-    ...(canPickExecute ? [{ to: '/floor/pick', label: 'Floor Pick', testId: 'nav-floor-pick' }] : []),
-    ...(canPackExecute ? [{ to: '/floor/pack', label: 'Floor Pack', testId: 'nav-floor-pack' }] : []),
-    ...(canDispatchHandover ? [{ to: '/floor/dispatch', label: 'Floor Dispatch', testId: 'nav-floor-dispatch' }] : []),
-    ...(canOperatorFloor ? [{ to: '/floor/operator', label: 'Floor Tasks', testId: 'nav-floor-operator' }] : []),
-    ...(canReceiving ? [{ to: '/receiving', label: 'Receiving', testId: 'nav-receiving' }] : []),
-    ...(canInventory ? [{ to: '/inventory', label: 'Inventory', testId: 'nav-inventory', hotkey: 'Alt+I' }] : []),
-    ...(canOrders ? [{ to: '/orders', label: 'Orders', testId: 'nav-orders', hotkey: 'Alt+O' }] : []),
-    ...(canPicking ? [{ to: '/picking', label: 'Picking', testId: 'nav-picking', hotkey: 'Alt+P' }] : []),
-    ...(canPacking ? [{ to: '/packing', label: 'Packing', testId: 'nav-packing' }] : []),
-    ...(canExceptions ? [{ to: '/exceptions', label: 'Exceptions', testId: 'nav-exceptions' }] : []),
-    ...(canAdjustments ? [{ to: '/adjustments', label: 'Adjustments', testId: 'nav-adjustments' }] : []),
-    ...(canInventory ? [{ to: '/warehouse', label: 'Warehouse', testId: 'nav-warehouse', hotkey: 'Alt+W' }] : []),
-    ...(canTasks ? [{ to: '/tasks', label: 'Tasks', testId: 'nav-tasks' }] : []),
-    ...(canAdmin ? [{ to: '/admin', label: 'Admin', testId: 'nav-admin' }] : []),
-    ...(canAudit ? [{ to: '/audit', label: 'Audit', testId: 'nav-audit' }] : [])
+    ...(isReceivingRole ? [{ to: '/receiving', label: 'Receiving', testId: 'nav-receiving' }] : []),
+    { to: '/inventory', label: 'Inventory', testId: 'nav-inventory', hotkey: 'Alt+I' },
+    { to: '/orders', label: 'Orders', testId: 'nav-orders', hotkey: 'Alt+O' },
+    ...(isPickingRole ? [{ to: '/picking', label: 'Picking', testId: 'nav-picking', hotkey: 'Alt+P' }] : []),
+    ...(isPackingRole ? [{ to: '/packing', label: 'Packing', testId: 'nav-packing' }] : []),
+    ...(isPickingRole ? [{ to: '/exceptions', label: 'Exceptions', testId: 'nav-exceptions' }] : []),
+    { to: '/warehouse', label: 'Warehouse', testId: 'nav-warehouse', hotkey: 'Alt+W' },
+    ...(isManager ? [{ to: '/tasks', label: 'Tasks', testId: 'nav-tasks' }] : []),
+    ...(isManager ? [{ to: '/admin', label: 'Admin', testId: 'nav-admin' }] : [])
   ];
 
   const links = navLinks || defaultLinks;
@@ -140,41 +118,36 @@ export const AppShell: React.FC<AppShellProps> = ({ navLinks }) => {
             {connected ? 'Live' : statusText || 'Reconnecting…'}
           </span>
 
-          {/* Quick Top Bar Role Switcher (Demo Mode Only) */}
-          {isDemoMode && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 700 }}>
-                Role:
-              </span>
-              <select
-                className="select"
-                value={user?.role || 'MANAGER'}
-                onChange={(e) => handleRoleSwitch(e.target.value)}
-                disabled={switchingRole}
-                style={{
-                  padding: '4px 10px',
-                  fontSize: '12px',
-                  height: '32px',
-                  borderRadius: 'var(--radius-pill)',
-                  backgroundColor: 'var(--bg-surface)',
-                  color: 'var(--text-primary)',
-                  border: '1px solid var(--border-color)',
-                  cursor: 'pointer',
-                  fontWeight: 600
-                }}
-                title="Switch role instantly"
-                data-testid="header-role-switcher"
-              >
-                <option value="ADMIN">🛡️ Admin</option>
-                <option value="MANAGER">👔 Manager</option>
-                <option value="OPERATOR">⚙️ Operator</option>
-                <option value="PICKER">📦 Picker</option>
-                <option value="STAFF">📋 Staff</option>
-                <option value="DISPATCH">🚚 Dispatch</option>
-                <option value="AUDITOR">🔍 Auditor</option>
-              </select>
-            </div>
-          )}
+          {/* Quick Top Bar Role Switcher */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 700 }}>
+              Role:
+            </span>
+            <select
+              className="select"
+              value={user?.role || 'MANAGER'}
+              onChange={(e) => handleRoleSwitch(e.target.value)}
+              disabled={switchingRole}
+              style={{
+                padding: '4px 10px',
+                fontSize: '12px',
+                height: '32px',
+                borderRadius: 'var(--radius-pill)',
+                backgroundColor: 'var(--bg-surface)',
+                color: 'var(--text-primary)',
+                border: '1px solid var(--border-color)',
+                cursor: 'pointer',
+                fontWeight: 600
+              }}
+              title="Switch role instantly"
+              data-testid="header-role-switcher"
+            >
+              <option value="MANAGER">👔 Manager</option>
+              <option value="OPERATOR">⚙️ Operator</option>
+              <option value="PICKER">📦 Picker</option>
+              <option value="STAFF">📋 Staff</option>
+            </select>
+          </div>
 
           {/* Keyboard Shortcuts Trigger Button */}
           <button

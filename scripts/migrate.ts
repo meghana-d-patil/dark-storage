@@ -24,41 +24,32 @@ export function applyMigrations(db: Database.Database, dir: string): { applied: 
   let applied = 0;
   let skipped = 0;
 
-  const prevFk = db.pragma('foreign_keys', { simple: true });
-  db.pragma('foreign_keys = OFF');
+  for (const file of files) {
+    const fullPath = path.join(dir, file);
+    const content = fs.readFileSync(fullPath, 'utf8');
+    const checksum = crypto.createHash('sha256').update(content, 'utf8').digest('hex');
+    const version = file.split('_')[0] || file;
 
-  try {
-    for (const file of files) {
-      const fullPath = path.join(dir, file);
-      const content = fs.readFileSync(fullPath, 'utf8');
-      const checksum = crypto.createHash('sha256').update(content, 'utf8').digest('hex');
-      const version = file.split('_')[0] || file;
+    const row = db.prepare('SELECT checksum FROM schema_migrations WHERE version = ?').get(version) as { checksum: string } | undefined;
 
-      const row = db.prepare('SELECT checksum FROM schema_migrations WHERE version = ?').get(version) as { checksum: string } | undefined;
-
-      if (row) {
-        if (row.checksum !== checksum) {
-          throw new Error(`MIGRATION_CHECKSUM_MISMATCH: Migration ${file} checksum mismatch`);
-        }
-        skipped++;
-        continue;
+    if (row) {
+      if (row.checksum !== checksum) {
+        throw new Error(`MIGRATION_CHECKSUM_MISMATCH: Migration ${file} checksum mismatch`);
       }
-
-      const tx = db.transaction(() => {
-        db.exec(content);
-        db.prepare(`
-          INSERT INTO schema_migrations (version, name, checksum)
-          VALUES (?, ?, ?)
-        `).run(version, file, checksum);
-      });
-
-      tx();
-      applied++;
+      skipped++;
+      continue;
     }
-  } finally {
-    if (prevFk) {
-      db.pragma('foreign_keys = ON');
-    }
+
+    const tx = db.transaction(() => {
+      db.exec(content);
+      db.prepare(`
+        INSERT INTO schema_migrations (version, name, checksum)
+        VALUES (?, ?, ?)
+      `).run(version, file, checksum);
+    });
+
+    tx();
+    applied++;
   }
 
   return { applied, skipped };

@@ -26,5 +26,4 @@ export interface AuthResponse {
     display_name: string;
     role: (typeof ROLES)[number];
   };
-  permissions: string[];
 }

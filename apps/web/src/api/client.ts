@@ -2,12 +2,12 @@ import { ErrorCode } from '@dark-storage/shared';
 import { useAuthStore } from '../stores/authStore.js';
 
 export class ApiError extends Error {
-  public readonly code: string;
+  public readonly code: ErrorCode | 'NETWORK_ERROR';
   public readonly httpStatus: number;
   public readonly details?: Record<string, unknown>;
   public readonly isNetwork: boolean;
 
-  constructor(code: string, message: string, httpStatus = 500, details?: Record<string, unknown>, isNetwork = false) {
+  constructor(code: ErrorCode | 'NETWORK_ERROR', message: string, httpStatus = 500, details?: Record<string, unknown>, isNetwork = false) {
     super(message);
     this.name = 'ApiError';
     this.code = code;

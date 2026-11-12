@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '../api/client.js';
 import { useAuthStore } from '../stores/authStore.js';
-import { useCan } from '../hooks/useCan.js';
 import { ProductLabel } from '../components/ProductLabel.js';
 import { StatusBadge } from '../components/StatusBadge.js';
 import { LabelPrintModal } from '../components/LabelPrintModal.js';
@@ -77,7 +76,7 @@ export const InventoryPage: React.FC = () => {
 
   const user = useAuthStore((s) => s.user);
   const isManager = user?.role === 'MANAGER';
-  const canRelocate = useCan('relocate:execute');
+  const canRelocate = user?.role === 'MANAGER' || user?.role === 'OPERATOR';
   const queryClient = useQueryClient();
 
 
@@ -543,6 +542,18 @@ export const InventoryPage: React.FC = () => {
                     Reactivate Bin
                   </button>
                 )}
+
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => {
+                    setRecountQty(binDetail.qty);
+                    setRecountSku(binDetail.sku || '');
+                    setRecountModalOpen(true);
+                  }}
+                  data-testid="bin-recount-btn"
+                >
+                  Recount
+                </button>
               </div>
             )}
 

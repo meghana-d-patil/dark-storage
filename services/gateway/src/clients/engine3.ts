@@ -6,7 +6,7 @@ export interface Engine3RequestOptions {
   path: string;
   body?: unknown;
   requestId?: string;
-  actor?: { id: number; role: string; username?: string; display_name?: string; name?: string } | null;
+  actor?: { id: number; role: string } | null;
   idempotencyKey?: string;
   timeoutMs?: number;
 }
@@ -25,10 +25,6 @@ export async function callEngine3<T>(opts: Engine3RequestOptions): Promise<{ sta
   if (opts.actor) {
     headers['x-actor-id'] = opts.actor.id.toString();
     headers['x-actor-role'] = opts.actor.role;
-    const uname = opts.actor.username || opts.actor.name;
-    if (uname) {
-      headers['x-actor-username'] = uname;
-    }
   }
   if (opts.idempotencyKey) {
     headers['x-idempotency-key'] = opts.idempotencyKey;

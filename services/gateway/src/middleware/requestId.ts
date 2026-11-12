@@ -9,8 +9,6 @@ declare global {
         id: number;
         role: string;
         name: string;
-        username?: string;
-        zones?: string[];
       } | null;
     }
   }
