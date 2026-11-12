@@ -3,6 +3,7 @@ import crypto from 'node:crypto';
 import { DomainError, MissionDto, PickStopDto, MissionProgressDto, MissionQueryInput } from '@dark-storage/shared';
 import { nextRef } from './ids.js';
 import { audit } from './audit.js';
+import { appendOrderEvent } from '../audit/appendAudit.js';
 import { emit } from './outbox.js';
 
 export interface PickPlanReservation {
@@ -179,6 +180,13 @@ export function assignMission(
   `
   ).run(picker.id, nowIso, order.id);
 
+  appendOrderEvent(db, {
+    orderRef: order.ref,
+    event: 'order.assigned',
+    actor: { id: params.actor.id, role: params.actor.role },
+    payload: { mission_ref: missionRef, picker_id: picker.id, picker_name: picker.display_name }
+  });
+
   // Audit
   audit(db, {
     actor: { id: params.actor.id, role: params.actor.role },
@@ -242,6 +250,13 @@ export function reassignMission(
   db.prepare('UPDATE missions SET picker_id = ? WHERE id = ?').run(picker.id, mission.id);
   db.prepare('UPDATE orders SET assigned_picker = ?, updated_at = ? WHERE id = ?').run(picker.id, nowIso, order.id);
 
+  appendOrderEvent(db, {
+    orderRef: order.ref,
+    event: 'order.assigned',
+    actor: { id: actor.id, role: actor.role },
+    payload: { mission_ref: mission.ref, old_picker_id: mission.picker_id, new_picker_id: picker.id }
+  });
+
   audit(db, {
     actor: { id: actor.id, role: actor.role },
     action: 'MISSION_REASSIGNED',
@@ -286,6 +301,16 @@ export function startMission(
   db.prepare("UPDATE missions SET status = 'IN_PROGRESS', started_at = ? WHERE id = ?").run(nowIso, mission.id);
   db.prepare("UPDATE orders SET status = 'PICKING', updated_at = ? WHERE id = ?").run(nowIso, mission.order_id);
 
+  const order = db.prepare('SELECT ref FROM orders WHERE id = ?').get(mission.order_id) as { ref: string };
+  if (order) {
+    appendOrderEvent(db, {
+      orderRef: order.ref,
+      event: 'order.picking_started',
+      actor: { id: actor.id, role: actor.role },
+      payload: { mission_ref: missionRef, picker_id: mission.picker_id }
+    });
+  }
+
   audit(db, {
     actor: { id: actor.id, role: actor.role },
     action: 'MISSION_STARTED',
@@ -296,8 +321,6 @@ export function startMission(
       picker_id: mission.picker_id
     }
   });
-
-  const order = db.prepare('SELECT ref FROM orders WHERE id = ?').get(mission.order_id) as { ref: string };
 
   emit(db, {
     event_type: 'mission.started',

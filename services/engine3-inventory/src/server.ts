@@ -24,9 +24,12 @@ import { createPackingRouter } from './routes/packing.js';
 import { createDashboardRouter } from './routes/dashboard.js';
 import { createOutboxRouter } from './routes/outbox.js';
 import { createConfigRouter } from './routes/config.js';
+import { createAuditRouter } from './routes/audit.js';
 import { createActorFromHeaders } from './middleware/rbac.js';
+import { ensureAuditChain } from './audit/appendAudit.js';
 
 export function createApp(db: Database.Database): Express {
+  ensureAuditChain(db);
   const app = express();
   app.use(express.json({ limit: '1mb' }));
 
@@ -37,6 +40,7 @@ export function createApp(db: Database.Database): Express {
   app.use(internalAuth);
   app.use(createActorFromHeaders(db));
   app.use(createConfigRouter(db));
+  app.use(createAuditRouter(db));
   app.use(createAuthRouter(db));
   app.use(createProductsRouter(db));
   app.use(createIntegrityRouter(db));

@@ -4,6 +4,7 @@ import { nextRef } from './ids.js';
 import { stockOut, reserve, release, recordMovement, applyRecount } from './inventoryRepo.js';
 import { closeReservationIfDone, allocateStock } from './ordersRepo.js';
 import { audit } from './audit.js';
+import { appendOrderEvent } from '../audit/appendAudit.js';
 import { emit } from './outbox.js';
 
 export function maybeCompleteMission(db: Database.Database, missionId: number): boolean {
@@ -44,6 +45,13 @@ export function maybeCompleteMission(db: Database.Database, missionId: number): 
         entity_type: 'ORDER',
         entity_id: order.ref,
         data: { ref: order.ref, status: 'PICKED' }
+      });
+
+      appendOrderEvent(db, {
+        orderRef: order.ref,
+        event: 'order.picked',
+        actor: { id: 1, role: 'SYSTEM' },
+        payload: { mission_ref: mission.ref }
       });
     }
 

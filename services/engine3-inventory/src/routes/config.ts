@@ -3,6 +3,7 @@ import Database from 'better-sqlite3';
 import { requirePerm } from '../middleware/rbac.js';
 import { getAllConfigRows, setConfig } from '../domain/configRepo.js';
 import { AppError } from '@dark-storage/shared';
+import { appendAudit } from '../audit/appendAudit.js';
 
 export function createConfigRouter(db: Database.Database): Router {
   const router = Router();
@@ -30,7 +31,7 @@ export function createConfigRouter(db: Database.Database): Router {
           throw new AppError('VALIDATION_FAILED', 400, "Body must contain 'value'");
         }
 
-        const existing = db.prepare('SELECT grp FROM system_config WHERE key = ?').get(key) as { grp: 'WEIGHT' | 'THRESHOLD' } | undefined;
+        const existing = db.prepare('SELECT grp, value FROM system_config WHERE key = ?').get(key) as { grp: 'WEIGHT' | 'THRESHOLD'; value: string } | undefined;
         if (!existing) {
           throw new AppError('NOT_FOUND', 404, `Config key '${key}' not found`);
         }
@@ -49,10 +50,14 @@ export function createConfigRouter(db: Database.Database): Router {
         const updated = setConfig(db, key, String(value), String(req.actor.id));
 
         // Audit config change
-        db.prepare(`
-          INSERT INTO audit_log (actor_user_id, actor_role, action, entity_type, entity_id, details)
-          VALUES (?, ?, 'config.changed', 'system_config', ?, ?)
-        `).run(req.actor.id, req.actor.role, key, JSON.stringify({ key, value: String(value) }));
+        appendAudit(db, {
+          actor: req.actor,
+          action: 'config.changed',
+          entityType: 'system_config',
+          entityRef: key,
+          before: existing.value,
+          after: String(value)
+        });
 
         res.json({ ok: true, item: updated });
       } catch (err) {

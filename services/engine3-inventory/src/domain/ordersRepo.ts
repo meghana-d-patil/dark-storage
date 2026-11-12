@@ -11,6 +11,7 @@ import {
 import { nextRef } from './ids.js';
 import { reserve, release } from './inventoryRepo.js';
 import { audit } from './audit.js';
+import { appendOrderEvent } from '../audit/appendAudit.js';
 import { emit } from './outbox.js';
 
 export function closeReservationIfDone(db: Database.Database, reservationId: number): void {
@@ -233,6 +234,13 @@ export function executeReserveOrder(
     data: { ref: orderRef }
   });
 
+  appendOrderEvent(db, {
+    orderRef,
+    event: 'order.created',
+    actor: { id: params.actor.id, role: params.actor.role },
+    payload: { lines: sortedLines, allocations }
+  });
+
   emit(db, {
     event_type: 'inventory.changed',
     entity_type: 'BIN',
@@ -371,6 +379,17 @@ export function cancelOrder(
     entity_type: 'ORDER',
     entity_id: ref,
     data: { ref, status: 'CANCELLED' }
+  });
+
+  appendOrderEvent(db, {
+    orderRef: ref,
+    event: 'order.cancelled',
+    actor: { id: actor.id, role: actor.role },
+    payload: {
+      reason,
+      released: releasedList,
+      unreturned_picked: unreturnedList
+    }
   });
 
   if (releasedBins.size > 0) {

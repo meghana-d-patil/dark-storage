@@ -25,13 +25,13 @@
 - [x] P2-T5 Role switcher
 
 ## Phase 3: Hash-chained audit log and order events (MUST)
-- [ ] P3-T1 Migration 012
-- [ ] P3-T2 `appendAudit`
-- [ ] P3-T3 Backfill
-- [ ] P3-T4 Replace old audit writes
-- [ ] P3-T5 Endpoints
-- [ ] P3-T6 Web
-- [ ] P3-T7 Tests
+- [x] P3-T1 Migration 012
+- [x] P3-T2 `appendAudit`
+- [x] P3-T3 Backfill
+- [x] P3-T4 Replace old audit writes
+- [x] P3-T5 Endpoints
+- [x] P3-T6 Web
+- [x] P3-T7 Tests
 
 ## Phase 4: Append-only stock ledger (MUST)
 - [ ] P4-T1 Migration 013 product attributes
@@ -82,4 +82,4 @@
 TODO:
 - [ ] P2-T3 role redirects: update role redirects in `LoginPage.tsx` when `/floor/pick`, `/floor/pack`, `/floor/operator`, `/floor/dispatch`, `/audit` are implemented in P5/P6/P7/P12.
 
-next: P3-T1 Migration 012
+next: P4-T1 Migration 013 product attributes

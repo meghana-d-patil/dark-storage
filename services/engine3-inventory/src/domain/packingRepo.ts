@@ -2,6 +2,7 @@ import Database from 'better-sqlite3';
 import { DomainError, PackingQueueItemDto, PackingResultDto } from '@dark-storage/shared';
 import { nextRef } from './ids.js';
 import { audit } from './audit.js';
+import { appendOrderEvent } from '../audit/appendAudit.js';
 import { emit } from './outbox.js';
 
 export function getPackingQueue(db: Database.Database): { items: PackingQueueItemDto[] } {
@@ -230,6 +231,18 @@ export function executePackOrder(
     entity_type: 'ORDER',
     entity_id: order.ref,
     data: { ref: order.ref, fulfilment_type: fulfilmentType }
+  });
+
+  appendOrderEvent(db, {
+    orderRef: order.ref,
+    event: 'order.packed',
+    actor: params.actor,
+    payload: {
+      packing_ref: packRef,
+      fulfilment_type: fulfilmentType,
+      total_ordered: totalOrdered,
+      total_picked: totalPicked
+    }
   });
 
   emit(db, {

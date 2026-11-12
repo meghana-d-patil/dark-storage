@@ -97,6 +97,7 @@ export const AppShell: React.FC<AppShellProps> = ({ navLinks }) => {
   const canExceptions = useCan(['exception:view', 'exception:raise']);
   const canTasks = useCan('control:view');
   const canAdmin = useCan(['user:manage', 'control:view']);
+  const canAudit = useCan('audit:view');
 
   const defaultLinks = [
     { to: '/', label: 'Home', testId: 'nav-home', hotkey: 'Alt+H' },
@@ -108,7 +109,8 @@ export const AppShell: React.FC<AppShellProps> = ({ navLinks }) => {
     ...(canExceptions ? [{ to: '/exceptions', label: 'Exceptions', testId: 'nav-exceptions' }] : []),
     ...(canInventory ? [{ to: '/warehouse', label: 'Warehouse', testId: 'nav-warehouse', hotkey: 'Alt+W' }] : []),
     ...(canTasks ? [{ to: '/tasks', label: 'Tasks', testId: 'nav-tasks' }] : []),
-    ...(canAdmin ? [{ to: '/admin', label: 'Admin', testId: 'nav-admin' }] : [])
+    ...(canAdmin ? [{ to: '/admin', label: 'Admin', testId: 'nav-admin' }] : []),
+    ...(canAudit ? [{ to: '/audit', label: 'Audit', testId: 'nav-audit' }] : [])
   ];
 
   const links = navLinks || defaultLinks;
