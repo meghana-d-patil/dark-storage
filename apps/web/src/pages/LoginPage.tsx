@@ -4,6 +4,25 @@ import { apiFetch, ApiError } from '../api/client.js';
 import { useAuthStore } from '../stores/authStore.js';
 import { AuthResponse } from '@dark-storage/shared';
 
+function getRoleRedirect(role: string): string {
+  // Target pages arrive in P5/P6/P7/P12; until then redirect to '/'
+  // TODO (P2-T3): when /floor/pick, /floor/pack, /floor/operator, /floor/dispatch, /audit exist, update redirects
+  switch (role) {
+    case 'PICKER':
+      return '/'; // Future: /floor/pick
+    case 'STAFF':
+      return '/'; // Future: /floor/pack
+    case 'OPERATOR':
+      return '/'; // Future: /floor/operator
+    case 'DISPATCH':
+      return '/'; // Future: /floor/dispatch
+    case 'AUDITOR':
+      return '/'; // Future: /audit
+    default:
+      return '/';
+  }
+}
+
 export const LoginPage: React.FC = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -11,6 +30,8 @@ export const LoginPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const { login } = useAuthStore();
   const navigate = useNavigate();
+
+  const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true' || import.meta.env.DEV;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,8 +48,8 @@ export const LoginPage: React.FC = () => {
         method: 'POST',
         body: JSON.stringify({ username, password })
       });
-      login(resp.token, resp.user);
-      navigate('/');
+      login(resp.token, resp.user, resp.permissions);
+      navigate(getRoleRedirect(resp.user.role));
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.code === 'UNAUTHENTICATED') {
@@ -44,28 +65,23 @@ export const LoginPage: React.FC = () => {
     }
   };
 
-  const handleQuickLogin = async (user: string, pass: string) => {
+  const handleQuickLogin = async (user: string) => {
     setUsername(user);
-    setPassword(pass);
     setLoading(true);
     setError(null);
 
     try {
-      const resp = await apiFetch<AuthResponse>('/api/auth/login', {
+      const resp = await apiFetch<AuthResponse>('/api/auth/dev-switch', {
         method: 'POST',
-        body: JSON.stringify({ username: user, password: pass })
+        body: JSON.stringify({ username: user })
       });
-      login(resp.token, resp.user);
-      navigate('/');
+      login(resp.token, resp.user, resp.permissions);
+      navigate(getRoleRedirect(resp.user.role));
     } catch (err) {
       if (err instanceof ApiError) {
-        if (err.code === 'UNAUTHENTICATED') {
-          setError('Wrong username or password');
-        } else {
-          setError(err.message);
-        }
+        setError(err.message);
       } else {
-        setError('Login failed. Please check connection.');
+        setError('Quick login failed. Please sign in manually.');
       }
     } finally {
       setLoading(false);
@@ -83,60 +99,62 @@ export const LoginPage: React.FC = () => {
           <p className="m3-subtitle" style={{ fontSize: '0.88rem' }}>Warehouse Operations & Inventory Control</p>
         </div>
 
-        {/* 4 Quick Role Login Buttons */}
-        <div style={{ marginBottom: '20px' }}>
-          <p style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', textAlign: 'center', marginBottom: '10px', fontWeight: 700 }}>
-            Quick 1-Click Role Login
-          </p>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
-            <button
-              type="button"
-              className="btn btn-secondary"
-              style={{ padding: '9px 12px', fontSize: '13px', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-              onClick={() => handleQuickLogin('manager1', 'Warehouse#2026')}
-              disabled={loading}
-              data-testid="role-login-manager"
-            >
-              <span>👔</span> Manager
-            </button>
-            <button
-              type="button"
-              className="btn btn-secondary"
-              style={{ padding: '9px 12px', fontSize: '13px', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-              onClick={() => handleQuickLogin('operator1', 'Warehouse#2026')}
-              disabled={loading}
-              data-testid="role-login-operator"
-            >
-              <span>⚙️</span> Operator
-            </button>
-            <button
-              type="button"
-              className="btn btn-secondary"
-              style={{ padding: '9px 12px', fontSize: '13px', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-              onClick={() => handleQuickLogin('picker1', 'Warehouse#2026')}
-              disabled={loading}
-              data-testid="role-login-picker"
-            >
-              <span>📦</span> Picker
-            </button>
-            <button
-              type="button"
-              className="btn btn-secondary"
-              style={{ padding: '9px 12px', fontSize: '13px', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-              onClick={() => handleQuickLogin('staff1', 'Warehouse#2026')}
-              disabled={loading}
-              data-testid="role-login-staff"
-            >
-              <span>📋</span> Staff
-            </button>
-          </div>
-        </div>
+        {/* Quick Role Login Buttons (Demo Mode Only) */}
+        {isDemoMode && (
+          <div style={{ marginBottom: '20px' }}>
+            <p style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', textAlign: 'center', marginBottom: '10px', fontWeight: 700 }}>
+              Quick 1-Click Role Login
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                style={{ padding: '9px 12px', fontSize: '13px', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                onClick={() => handleQuickLogin('manager1')}
+                disabled={loading}
+                data-testid="role-login-manager"
+              >
+                <span>👔</span> Manager
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                style={{ padding: '9px 12px', fontSize: '13px', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                onClick={() => handleQuickLogin('operator1')}
+                disabled={loading}
+                data-testid="role-login-operator"
+              >
+                <span>⚙️</span> Operator
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                style={{ padding: '9px 12px', fontSize: '13px', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                onClick={() => handleQuickLogin('picker1')}
+                disabled={loading}
+                data-testid="role-login-picker"
+              >
+                <span>📦</span> Picker
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                style={{ padding: '9px 12px', fontSize: '13px', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                onClick={() => handleQuickLogin('staff1')}
+                disabled={loading}
+                data-testid="role-login-staff"
+              >
+                <span>📋</span> Staff
+              </button>
+            </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '16px 0 20px' }}>
-          <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--border-color)' }} />
-          <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>or sign in manually</span>
-          <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--border-color)' }} />
-        </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '16px 0 20px' }}>
+              <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--border-color)' }} />
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>or sign in manually</span>
+              <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--border-color)' }} />
+            </div>
+          </div>
+        )}
 
         {error && (
           <div

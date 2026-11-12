@@ -3,8 +3,7 @@ import { DomainError, shelfOfBin, relocateSchema } from '@dark-storage/shared';
 import { callEngine3 } from '../clients/engine3.js';
 import { runViaEngine1 } from '../clients/engine1.js';
 import { authMiddleware } from '../middleware/auth.js';
-import { rbacMiddleware } from '../middleware/rbac.js';
-
+import { requirePerm } from '../middleware/rbac.js';
 
 export const inventoryRouter = Router();
 
@@ -12,7 +11,7 @@ export const inventoryRouter = Router();
 inventoryRouter.use(authMiddleware);
 
 // GET /api/inventory (alias for /summary)
-inventoryRouter.get('/', async (req: Request, res: Response, next: NextFunction) => {
+inventoryRouter.get('/', requirePerm('inventory:view'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const query = new URLSearchParams(req.query as Record<string, string>).toString();
     const result = await callEngine3({
@@ -27,8 +26,8 @@ inventoryRouter.get('/', async (req: Request, res: Response, next: NextFunction)
   }
 });
 
-// POST /api/inventory/bins/:code/status (MANAGER)
-inventoryRouter.post('/bins/:code/status', rbacMiddleware(['MANAGER']), async (req: Request, res: Response, next: NextFunction) => {
+// POST /api/inventory/bins/:code/status
+inventoryRouter.post('/bins/:code/status', requirePerm(['exception:resolve', 'inventory:view']), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const code = req.params.code;
     const actor = req.user ? { id: req.user.id, role: req.user.role } : null;
@@ -47,30 +46,17 @@ inventoryRouter.post('/bins/:code/status', rbacMiddleware(['MANAGER']), async (r
   }
 });
 
-// POST /api/inventory/bins/:code/recount (MANAGER)
-inventoryRouter.post('/bins/:code/recount', rbacMiddleware(['MANAGER']), async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const code = req.params.code;
-    const actor = req.user ? { id: req.user.id, role: req.user.role } : null;
-    const idempotencyKey = (req.headers['idempotency-key'] as string) || (req.headers['x-idempotency-key'] as string) || undefined;
-
-    const result = await callEngine3({
-      method: 'POST',
-      path: `/internal/v1/inventory/bins/${encodeURIComponent(code)}/recount`,
-      body: req.body,
-      requestId: req.requestId,
-      actor,
-      idempotencyKey
-    });
-
-    res.status(result.status).json(result.data);
-  } catch (err) {
-    next(err);
-  }
+// POST /api/inventory/bins/:code/recount - D11 REMOVED
+inventoryRouter.post('/bins/:code/recount', async (_req: Request, res: Response) => {
+  res.status(410).json({
+    error: 'Endpoint removed',
+    code: 'ENDPOINT_REMOVED',
+    details: { replacement: 'Phase 7: /api/adjustments blind count' }
+  });
 });
 
 // GET /api/inventory/summary
-inventoryRouter.get('/summary', async (req: Request, res: Response, next: NextFunction) => {
+inventoryRouter.get('/summary', requirePerm('inventory:view'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const query = new URLSearchParams(req.query as Record<string, string>).toString();
     const result = await callEngine3({
@@ -86,7 +72,7 @@ inventoryRouter.get('/summary', async (req: Request, res: Response, next: NextFu
 });
 
 // GET /api/inventory/bins
-inventoryRouter.get('/bins', async (req: Request, res: Response, next: NextFunction) => {
+inventoryRouter.get('/bins', requirePerm('inventory:view'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const query = new URLSearchParams(req.query as Record<string, string>).toString();
     const result = await callEngine3({
@@ -102,7 +88,7 @@ inventoryRouter.get('/bins', async (req: Request, res: Response, next: NextFunct
 });
 
 // GET /api/inventory/bins/:code
-inventoryRouter.get('/bins/:code', async (req: Request, res: Response, next: NextFunction) => {
+inventoryRouter.get('/bins/:code', requirePerm('inventory:view'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const code = req.params.code;
     const result = await callEngine3({
@@ -118,7 +104,7 @@ inventoryRouter.get('/bins/:code', async (req: Request, res: Response, next: Nex
 });
 
 // GET /api/inventory/movements
-inventoryRouter.get('/movements', async (req: Request, res: Response, next: NextFunction) => {
+inventoryRouter.get('/movements', requirePerm('inventory:view'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const query = new URLSearchParams(req.query as Record<string, string>).toString();
     const result = await callEngine3({
@@ -133,8 +119,8 @@ inventoryRouter.get('/movements', async (req: Request, res: Response, next: Next
   }
 });
 
-// POST /api/inventory/relocate (MANAGER, OPERATOR) - via Engine 1
-inventoryRouter.post('/relocate', rbacMiddleware(['MANAGER', 'OPERATOR']), async (req: Request, res: Response, next: NextFunction) => {
+// POST /api/inventory/relocate (relocate:execute)
+inventoryRouter.post('/relocate', requirePerm('relocate:execute'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const key = (req.headers['idempotency-key'] as string) || (req.headers['x-idempotency-key'] as string);
     if (!key) {
@@ -167,4 +153,3 @@ inventoryRouter.post('/relocate', rbacMiddleware(['MANAGER', 'OPERATOR']), async
     next(err);
   }
 });
-

@@ -18,11 +18,11 @@
 - [x] P1-T8 Unit tests
 
 ## Phase 2: RBAC enforcement and removal of Manager execution powers (MUST)
-- [ ] P2-T1 Guard the gateway
-- [ ] P2-T2 Remove Manager powers and D11 endpoints
-- [ ] P2-T3 Web permissions layer
-- [ ] P2-T4 Remove buttons the Manager must not see
-- [ ] P2-T5 Role switcher
+- [x] P2-T1 Guard the gateway
+- [x] P2-T2 Remove Manager powers and D11 endpoints
+- [x] P2-T3 Web permissions layer
+- [x] P2-T4 Remove buttons the Manager must not see
+- [x] P2-T5 Role switcher
 
 ## Phase 3: Hash-chained audit log and order events (MUST)
 - [ ] P3-T1 Migration 012
@@ -79,4 +79,7 @@
 - [ ] P7-T11 Tests
 
 ---
-next: P2-T1 Guard the gateway
+TODO:
+- [ ] P2-T3 role redirects: update role redirects in `LoginPage.tsx` when `/floor/pick`, `/floor/pack`, `/floor/operator`, `/floor/dispatch`, `/audit` are implemented in P5/P6/P7/P12.
+
+next: P3-T1 Migration 012

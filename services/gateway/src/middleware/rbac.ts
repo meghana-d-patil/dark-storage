@@ -15,17 +15,26 @@ export function rbacMiddleware(allowedRoles: Role[]): (req: Request, res: Respon
   };
 }
 
-export function requirePerm(perm: string): (req: Request, res: Response, next: NextFunction) => void {
+export function requirePerm(perm: string | string[]): (req: Request, res: Response, next: NextFunction) => void {
+  const perms = Array.isArray(perm) ? perm : [perm];
   return (req: Request, res: Response, next: NextFunction) => {
     if (!req.user) {
       throw new DomainError('UNAUTHENTICATED', 'Authentication required');
     }
 
-    if (!can({ role: req.user.role as Role }, perm)) {
-      throw new DomainError('FORBIDDEN', `Permission '${perm}' required for this action`);
+    const actor = {
+      role: req.user.role as Role,
+      permissions: (req.user as any).permissions
+    };
+
+    const hasAny = perms.some((p) => can(actor, p));
+    if (!hasAny) {
+      throw new DomainError('FORBIDDEN', `Permission '${perms.join(' or ')}' required for this action`, {
+        required: perms,
+        userRole: req.user.role
+      });
     }
 
     next();
   };
 }
-

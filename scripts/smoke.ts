@@ -60,7 +60,55 @@ async function main() {
       throw new Error(`Login for ${username} did not return permissions array`);
     }
     console.log(`[Smoke] Logged in as ${loginData.user?.username} (${loginData.user?.role}) with ${loginData.permissions.length} perms`);
+    if (username === 'manager') managerToken = loginData.token;
   }
+
+  // 3. Verify Manager RBAC constraints: 410 on removed endpoints, 403 on physical execution
+  const d11Checks = [
+    { method: 'POST', path: '/api/orders/ORD-001/pack' },
+    { method: 'POST', path: '/api/packing/ORD-001/pack' },
+    { method: 'POST', path: '/api/pick-stops/STP-001/confirm' },
+    { method: 'POST', path: '/api/inventory/bins/A-01-01/recount' },
+    { method: 'POST', path: '/api/orders/ORD-001/assign' }
+  ];
+
+  for (const check of d11Checks) {
+    const res = await fetch(`${BASE_URL}${check.path}`, {
+      method: check.method,
+      headers: {
+        Authorization: `Bearer ${managerToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({})
+    });
+    if (res.status !== 410) {
+      throw new Error(`Expected 410 for removed ${check.path}, got ${res.status}`);
+    }
+  }
+  console.log('[Smoke] Verified all 5 D11 endpoints return 410 ENDPOINT_REMOVED');
+
+  const executeChecks = [
+    { method: 'POST', path: '/api/receipts', body: { lines: [] } },
+    { method: 'POST', path: '/api/putaways', body: {} },
+    { method: 'POST', path: '/api/inventory/relocate', body: {} },
+    { method: 'POST', path: '/api/missions/MSN-001/start', body: {} }
+  ];
+
+  for (const check of executeChecks) {
+    const res = await fetch(`${BASE_URL}${check.path}`, {
+      method: check.method,
+      headers: {
+        Authorization: `Bearer ${managerToken}`,
+        'Content-Type': 'application/json',
+        'idempotency-key': 'smoke-test-key'
+      },
+      body: JSON.stringify(check.body)
+    });
+    if (res.status !== 403) {
+      throw new Error(`Expected 403 for manager executing ${check.path}, got ${res.status}`);
+    }
+  }
+  console.log('[Smoke] Verified Manager physical execution attempts return 403 FORBIDDEN');
 
   // 3. List orders using manager token
   const ordersRes = await fetch(`${BASE_URL}/api/orders`, {

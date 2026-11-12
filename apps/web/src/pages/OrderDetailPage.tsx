@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch, ApiError } from '../api/client.js';
 import { useAuthStore } from '../stores/authStore.js';
+import { useCan } from '../hooks/useCan.js';
 import { OrderDto, MissionDto } from '@dark-storage/shared';
 import { StatusBadge } from '../components/StatusBadge.js';
 
@@ -145,8 +146,10 @@ export const OrderDetailPage: React.FC = () => {
 
   const cancellableStatuses = ['RESERVED', 'ASSIGNED', 'PICKING'];
   const totalPicked = order.lines.reduce((acc, l) => acc + l.qty_picked, 0);
+  const canCancelPerm = useCan('order:cancel');
+  const canReassign = useCan('mission:reassign');
   const canCancel =
-    isManager &&
+    canCancelPerm &&
     (cancellableStatuses.includes(order.status) || (order.status === 'PICKED' && totalPicked === 0));
 
   const toggleLine = (lineNo: number) => {
@@ -171,20 +174,7 @@ export const OrderDetailPage: React.FC = () => {
           </div>
 
           <div style={{ display: 'flex', gap: '8px' }}>
-            {isManager && order.status === 'RESERVED' && (
-              <button
-                className="btn btn-primary"
-                data-testid="order-assign-btn"
-                onClick={() => {
-                  setIsReassign(false);
-                  setSelectedPickerId(pickers[0]?.id ?? null);
-                  setAssignModalOpen(true);
-                }}
-              >
-                Assign Picker
-              </button>
-            )}
-            {isManager && order.status === 'ASSIGNED' && (
+            {canReassign && order.status === 'ASSIGNED' && (
               <button
                 className="btn btn-secondary"
                 data-testid="reassign-picker-btn"

@@ -2,15 +2,14 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '../api/client.js';
 import { useAuthStore } from '../stores/authStore.js';
+import { useCan } from '../hooks/useCan.js';
 import { PackingQueueItemDto, PackingResultDto } from '@dark-storage/shared';
 import { StatusBadge } from '../components/StatusBadge.js';
 
 export const PackingPage: React.FC = () => {
   const queryClient = useQueryClient();
   const { user } = useAuthStore();
-  const isManager = user?.role === 'MANAGER';
-  const isStaff = user?.role === 'STAFF';
-  const canPack = isManager || isStaff;
+  const canPack = useCan('pack:execute');
 
   const [selectedOrderRef, setSelectedOrderRef] = useState<string | null>(null);
   const [packNotes, setPackNotes] = useState('');
@@ -72,7 +71,7 @@ export const PackingPage: React.FC = () => {
   const isPartial = selectedOrder?.fulfilment_preview === 'PARTIAL';
   const canConfirm =
     canPack &&
-    (!isPartial || (isManager && acceptPartial)) &&
+    (!isPartial || acceptPartial) &&
     !packMutation.isPending;
 
   return (
@@ -281,7 +280,7 @@ export const PackingPage: React.FC = () => {
                 <div style={{ fontWeight: 700, color: '#fde68a', fontSize: '14px' }}>
                   Partial Fulfilment Warning ({selectedOrder.total_short} units short)
                 </div>
-                {isManager ? (
+                {canPack ? (
                   <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13.5px' }}>
                     <input
                       type="checkbox"
@@ -293,28 +292,30 @@ export const PackingPage: React.FC = () => {
                   </label>
                 ) : (
                   <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-secondary)' }} data-testid="staff-pack-disabled">
-                    Manager approval is required to pack orders with shortfalls.
+                    Viewing mode: Packing execution is restricted to packing staff.
                   </p>
                 )}
               </div>
             )}
 
             {/* Confirm packing button */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '6px' }}>
-              <button
-                type="button"
-                className="btn btn-primary"
-                data-testid="pack-confirm-btn"
-                onClick={handleConfirmPack}
-                disabled={!canConfirm}
-              >
-                {packMutation.isPending
-                  ? 'Confirming Packing...'
-                  : isPartial
-                  ? 'Confirm Partial Packing'
-                  : 'Confirm Packing'}
-              </button>
-            </div>
+            {canPack && (
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '6px' }}>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  data-testid="pack-confirm-btn"
+                  onClick={handleConfirmPack}
+                  disabled={!canConfirm}
+                >
+                  {packMutation.isPending
+                    ? 'Confirming Packing...'
+                    : isPartial
+                    ? 'Confirm Partial Packing'
+                    : 'Confirm Packing'}
+                </button>
+              </div>
+            )}
           </div>
         ) : (
           <div className="card" style={{ padding: '3.5rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
