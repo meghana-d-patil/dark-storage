@@ -815,7 +815,7 @@ export function createFloorTask(db: Database.Database, input: CreateFloorTaskInp
     bin_code: input.binCode || null,
     dest_bin_code: input.destBinCode || null,
     sku: input.sku || null,
-    lotId: input.lotId || null,
+    lot_id: input.lotId || null,
     qty: input.qty || null,
     order_ref: input.orderRef || null,
     source_ref: input.sourceRef || null,

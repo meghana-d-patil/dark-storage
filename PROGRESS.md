@@ -55,15 +55,15 @@
 - [x] P5-T9 Tests
 
 ## Phase 6: Packing and dispatch (MUST)
-- [ ] P6-T1 Migration 016 orders rebuild
-- [ ] P6-T2 Migration 017
-- [ ] P6-T3 Open pack session
-- [ ] P6-T4 Item scans
-- [ ] P6-T5 Flag item
-- [ ] P6-T6 Weigh + complete
-- [ ] P6-T7 Dispatch
-- [ ] P6-T8 Web
-- [ ] P6-T9 Tests
+- [x] P6-T1 Migration 016 orders rebuild
+- [x] P6-T2 Migration 017
+- [x] P6-T3 Open pack session
+- [x] P6-T4 Item scans
+- [x] P6-T5 Flag item
+- [x] P6-T6 Weigh + complete
+- [x] P6-T7 Dispatch
+- [x] P6-T8 Web
+- [x] P6-T9 Tests
 
 ## Phase 7: Exception loop, dual-control adjustments, quarantine, relocation (MUST)
 - [ ] P7-T1 Migration 018
@@ -80,6 +80,6 @@
 
 ---
 TODO:
-- [ ] P2-T3 role redirects: update role redirects in `LoginPage.tsx` when `/floor/pack`, `/floor/operator`, `/floor/dispatch`, `/audit` are implemented in P6/P7/P12.
+- [ ] P2-T3 role redirects: update role redirects in `LoginPage.tsx` when `/floor/operator` is implemented in P7.
 
-next: P6-T1 Migration 016 orders rebuild
+next: P7-T1 Migration 018

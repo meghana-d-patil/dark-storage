@@ -20,6 +20,8 @@ import { PackingPage } from './pages/PackingPage.js';
 import { AdminPage } from './pages/AdminPage.js';
 import { AuditPage } from './pages/AuditPage.js';
 import { PickFloorPage } from './pages/floor/PickFloorPage.js';
+import { PackFloorPage } from './pages/floor/PackFloorPage.js';
+import { DispatchFloorPage } from './pages/floor/DispatchFloorPage.js';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -60,6 +62,8 @@ export const App: React.FC = () => {
             <Route path="/admin" element={<RequirePerm perm={['user:manage', 'control:view']}><AdminPage /></RequirePerm>} />
             <Route path="/audit" element={<RequirePerm perm="audit:view"><AuditPage /></RequirePerm>} />
             <Route path="/floor/pick" element={<RequirePerm perm="pick:execute"><PickFloorPage /></RequirePerm>} />
+            <Route path="/floor/pack" element={<RequirePerm perm="pack:execute"><PackFloorPage /></RequirePerm>} />
+            <Route path="/floor/dispatch" element={<RequirePerm perm="dispatch:handover"><DispatchFloorPage /></RequirePerm>} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

@@ -280,3 +280,61 @@ export function postLedger(
   // Rule 6: returns entries
   return results;
 }
+
+export function reconcileLedger(db: Database.Database): {
+  ok: boolean;
+  drift_count: number;
+  drifts: Array<{ binCode: string; sku: string; ledger_qty: number; proj_qty: number; delta: number }>;
+} {
+  const mismatches = db
+    .prepare(
+      `
+    WITH ledger_bins AS (
+      SELECT
+        substr(location_key, 5) AS bin_code,
+        sku,
+        SUM(qty) AS ledger_qty
+      FROM location_balances
+      WHERE location_key GLOB 'BIN:*'
+      GROUP BY location_key, sku
+      HAVING SUM(qty) <> 0
+    ),
+    inv_bins AS (
+      SELECT
+        bin_code,
+        sku,
+        qty AS proj_qty
+      FROM inventory
+      WHERE qty > 0 AND sku IS NOT NULL
+    ),
+    all_keys AS (
+      SELECT bin_code, sku FROM ledger_bins
+      UNION
+      SELECT bin_code, sku FROM inv_bins
+    )
+    SELECT
+      k.bin_code AS binCode,
+      k.sku,
+      COALESCE(l.ledger_qty, 0) AS ledger_qty,
+      COALESCE(i.proj_qty, 0) AS proj_qty,
+      (COALESCE(i.proj_qty, 0) - COALESCE(l.ledger_qty, 0)) AS delta
+    FROM all_keys k
+    LEFT JOIN ledger_bins l ON k.bin_code = l.bin_code AND k.sku = l.sku
+    LEFT JOIN inv_bins i ON k.bin_code = i.bin_code AND k.sku = i.sku
+    WHERE COALESCE(l.ledger_qty, 0) <> COALESCE(i.proj_qty, 0)
+  `
+    )
+    .all() as Array<{
+    binCode: string;
+    sku: string;
+    ledger_qty: number;
+    proj_qty: number;
+    delta: number;
+  }>;
+
+  return {
+    ok: mismatches.length === 0,
+    drift_count: mismatches.length,
+    drifts: mismatches,
+  };
+}

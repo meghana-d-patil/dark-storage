@@ -9,11 +9,11 @@ function getRoleRedirect(role: string): string {
     case 'PICKER':
       return '/floor/pick';
     case 'STAFF':
-      return '/'; // Future P6: /floor/pack
+      return '/floor/pack';
     case 'OPERATOR':
       return '/'; // Future P7: /floor/operator
     case 'DISPATCH':
-      return '/'; // Future P6: /floor/dispatch
+      return '/floor/dispatch';
     case 'AUDITOR':
       return '/audit';
     default:
