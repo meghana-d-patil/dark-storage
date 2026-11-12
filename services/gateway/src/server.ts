@@ -28,6 +28,8 @@ import { ledgerRouter } from './routes/ledger.js';
 import { pickerRouter } from './routes/picker.js';
 import { floorTasksRouter } from './routes/floorTasks.js';
 import { dispatchRouter } from './routes/dispatch.js';
+import { adjustmentsRouter } from './routes/adjustments.js';
+import { relocationsRouter } from './routes/relocations.js';
 
 export function createApp(): Express {
   const app = express();
@@ -69,6 +71,8 @@ export function createApp(): Express {
   app.use('/api/picker', pickerRouter);
   app.use('/api/floor-tasks', floorTasksRouter);
   app.use('/api/dispatch', dispatchRouter);
+  app.use('/api/adjustments', adjustmentsRouter);
+  app.use('/api/relocations', relocationsRouter);
 
 
   // Unknown route handler

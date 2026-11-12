@@ -58,6 +58,7 @@ export function buildRawMission(db: Database.Database, missionRef: string): RawM
     JOIN bins b ON ps.bin_code = b.code
     JOIN shelves s ON b.shelf_code = s.code
     WHERE ps.mission_id = ?
+      AND ps.step != 'CANCELLED'
     ORDER BY ps.seq ASC
   `
     )
@@ -895,6 +896,17 @@ export function claimFloorTask(
 
     if (task.status !== 'OPEN') {
       throw new DomainError('STATE_CONFLICT', `Floor task is in status ${task.status}, expected OPEN`, {}, 409);
+    }
+
+    if (task.type === 'COUNT' && task.payload) {
+      try {
+        const p = typeof task.payload === 'string' ? JSON.parse(task.payload) : task.payload;
+        if (p.previous_counter && p.previous_counter === actor.username) {
+          throw new DomainError('COUNTER_MUST_DIFFER', 'A different counter must perform round 2 count', {}, 403);
+        }
+      } catch (e: any) {
+        if (e.code === 'COUNTER_MUST_DIFFER') throw e;
+      }
     }
 
     transition('FLOOR_TASK', 'OPEN', 'claim');

@@ -11,7 +11,7 @@ function getRoleRedirect(role: string): string {
     case 'STAFF':
       return '/floor/pack';
     case 'OPERATOR':
-      return '/'; // Future P7: /floor/operator
+      return '/floor/operator';
     case 'DISPATCH':
       return '/floor/dispatch';
     case 'AUDITOR':

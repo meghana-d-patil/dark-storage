@@ -101,6 +101,31 @@ pickStopsRouter.post(
   }
 );
 
+// POST /api/pick-stops/:stop_ref/report-exception (exception:raise)
+pickStopsRouter.post(
+  '/:stop_ref/report-exception',
+  requirePerm('exception:raise'),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const actor = req.user
+        ? { id: req.user.id, role: req.user.role, username: req.user.username, display_name: req.user.name }
+        : null;
+
+      const result = await callEngine3({
+        method: 'POST',
+        path: `/internal/v1/pick-stops/${encodeURIComponent(req.params.stop_ref)}/report-exception`,
+        requestId: req.requestId,
+        actor,
+        body: req.body,
+      });
+
+      res.status(result.status).json(result.data);
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
 // POST /api/pick-stops/:stop_ref/confirm - D11 REMOVED
 pickStopsRouter.post('/:stop_ref/confirm', async (_req: Request, res: Response) => {
   res.status(410).json({

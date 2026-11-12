@@ -1,5 +1,6 @@
 import Database from 'better-sqlite3';
 import { sweepExpiredLeases } from './leaseSweep.js';
+import { sweepEscalations } from './escalation.js';
 
 export interface BackgroundJob {
   name: string;
@@ -14,6 +15,13 @@ export function startBackgroundJobs(db: Database.Database): () => void {
       intervalMs: 15_000,
       run: (database) => {
         sweepExpiredLeases(database);
+      },
+    },
+    {
+      name: 'escalation_sweep',
+      intervalMs: 60_000,
+      run: (database) => {
+        sweepEscalations(database);
       },
     },
   ];

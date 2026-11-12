@@ -28,6 +28,8 @@ import { createAuditRouter } from './routes/audit.js';
 import { createLedgerRouter } from './routes/ledger.js';
 import { createPickerRouter } from './routes/picker.js';
 import { createDispatchRouter } from './routes/dispatch.js';
+import { createExceptionsRouter } from './routes/exceptions.js';
+import { createAdjustmentsRouter } from './routes/adjustments.js';
 import { createActorFromHeaders } from './middleware/rbac.js';
 import { ensureAuditChain } from './audit/appendAudit.js';
 import { backfillOpeningLedger } from './ledger/backfillOpening.js';
@@ -62,6 +64,8 @@ export function createApp(db: Database.Database): Express {
   app.use(createPickingRouter(db));
   app.use(createPackingRouter(db));
   app.use(createDispatchRouter(db));
+  app.use(createExceptionsRouter(db));
+  app.use(createAdjustmentsRouter(db));
   app.use(createDashboardRouter(db));
   app.use(createOutboxRouter(db));
 

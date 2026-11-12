@@ -101,18 +101,22 @@ export const AppShell: React.FC<AppShellProps> = ({ navLinks }) => {
   const canPickExecute = useCan('pick:execute');
   const canPackExecute = useCan('pack:execute');
   const canDispatchHandover = useCan('dispatch:handover');
+  const canOperatorFloor = useCan('floortask:claim');
+  const canAdjustments = useCan(['adjust:approve', 'adjust:approve_high', 'audit:view']);
 
   const defaultLinks = [
     { to: '/', label: 'Home', testId: 'nav-home', hotkey: 'Alt+H' },
     ...(canPickExecute ? [{ to: '/floor/pick', label: 'Floor Pick', testId: 'nav-floor-pick' }] : []),
     ...(canPackExecute ? [{ to: '/floor/pack', label: 'Floor Pack', testId: 'nav-floor-pack' }] : []),
     ...(canDispatchHandover ? [{ to: '/floor/dispatch', label: 'Floor Dispatch', testId: 'nav-floor-dispatch' }] : []),
+    ...(canOperatorFloor ? [{ to: '/floor/operator', label: 'Floor Tasks', testId: 'nav-floor-operator' }] : []),
     ...(canReceiving ? [{ to: '/receiving', label: 'Receiving', testId: 'nav-receiving' }] : []),
     ...(canInventory ? [{ to: '/inventory', label: 'Inventory', testId: 'nav-inventory', hotkey: 'Alt+I' }] : []),
     ...(canOrders ? [{ to: '/orders', label: 'Orders', testId: 'nav-orders', hotkey: 'Alt+O' }] : []),
     ...(canPicking ? [{ to: '/picking', label: 'Picking', testId: 'nav-picking', hotkey: 'Alt+P' }] : []),
     ...(canPacking ? [{ to: '/packing', label: 'Packing', testId: 'nav-packing' }] : []),
     ...(canExceptions ? [{ to: '/exceptions', label: 'Exceptions', testId: 'nav-exceptions' }] : []),
+    ...(canAdjustments ? [{ to: '/adjustments', label: 'Adjustments', testId: 'nav-adjustments' }] : []),
     ...(canInventory ? [{ to: '/warehouse', label: 'Warehouse', testId: 'nav-warehouse', hotkey: 'Alt+W' }] : []),
     ...(canTasks ? [{ to: '/tasks', label: 'Tasks', testId: 'nav-tasks' }] : []),
     ...(canAdmin ? [{ to: '/admin', label: 'Admin', testId: 'nav-admin' }] : []),

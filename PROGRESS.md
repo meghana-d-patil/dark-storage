@@ -66,20 +66,20 @@
 - [x] P6-T9 Tests
 
 ## Phase 7: Exception loop, dual-control adjustments, quarantine, relocation (MUST)
-- [ ] P7-T1 Migration 018
-- [ ] P7-T2 Picker raises exception
-- [ ] P7-T3 Blind count
-- [ ] P7-T4 Adjustments API
-- [ ] P7-T5 Damage flag
-- [ ] P7-T6 Manager exception actions
-- [ ] P7-T7 Escalation job
-- [ ] P7-T8 Relocation
-- [ ] P7-T9 Cancel before pick
-- [ ] P7-T10 Web
-- [ ] P7-T11 Tests
+- [x] P7-T1 Migration 018
+- [x] P7-T2 Picker raises exception
+- [x] P7-T3 Blind count
+- [x] P7-T4 Adjustments API
+- [x] P7-T5 Damage flag
+- [x] P7-T6 Manager exception actions
+- [x] P7-T7 Escalation job
+- [x] P7-T8 Relocation
+- [x] P7-T9 Cancel before pick
+- [x] P7-T10 Web
+- [x] P7-T11 Tests
 
 ---
 TODO:
-- [ ] P2-T3 role redirects: update role redirects in `LoginPage.tsx` when `/floor/operator` is implemented in P7.
+- [x] P2-T3 role redirects: update role redirects in `LoginPage.tsx` when `/floor/operator` is implemented in P7.
 
-next: P7-T1 Migration 018
+next: ALL MUST PHASES (P0-P7) COMPLETE. System verified and green.

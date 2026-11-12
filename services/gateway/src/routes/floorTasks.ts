@@ -95,3 +95,45 @@ floorTasksRouter.post('/:ref/release', async (req: Request, res: Response, next:
     next(err);
   }
 });
+
+// POST /api/floor-tasks/:ref/count (count:execute)
+floorTasksRouter.post('/:ref/count', requirePerm('count:execute'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const actor = req.user
+      ? { id: req.user.id, role: req.user.role, username: req.user.username, display_name: req.user.name }
+      : null;
+
+    const result = await callEngine3({
+      method: 'POST',
+      path: `/internal/v1/floor-tasks/${encodeURIComponent(req.params.ref)}/count`,
+      body: req.body,
+      requestId: req.requestId,
+      actor,
+    });
+
+    res.status(result.status).json(result.data);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/floor-tasks/:ref/relocate (relocate:execute)
+floorTasksRouter.post('/:ref/relocate', requirePerm('relocate:execute'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const actor = req.user
+      ? { id: req.user.id, role: req.user.role, username: req.user.username, display_name: req.user.name }
+      : null;
+
+    const result = await callEngine3({
+      method: 'POST',
+      path: `/internal/v1/floor-tasks/${encodeURIComponent(req.params.ref)}/relocate`,
+      body: req.body,
+      requestId: req.requestId,
+      actor,
+    });
+
+    res.status(result.status).json(result.data);
+  } catch (err) {
+    next(err);
+  }
+});

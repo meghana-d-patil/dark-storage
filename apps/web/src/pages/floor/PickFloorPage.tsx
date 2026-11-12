@@ -9,6 +9,11 @@ export const PickFloorPage: React.FC = () => {
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [banner, setBanner] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
+  // Exception modal state
+  const [reportModal, setReportModal] = useState<boolean>(false);
+  const [reportKind, setReportKind] = useState<'MISSING' | 'DAMAGED' | 'BIN_BLOCKED'>('MISSING');
+  const [reportNote, setReportNote] = useState<string>('');
+
   const inputRef = useRef<HTMLInputElement>(null);
 
   const fetchActiveMission = async () => {
@@ -130,6 +135,32 @@ export const PickFloorPage: React.FC = () => {
     } finally {
       setSubmitting(false);
       setTimeout(() => inputRef.current?.focus(), 50);
+    }
+  };
+
+  const handleReportException = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeStop || !mission) return;
+
+    setSubmitting(true);
+    setBanner(null);
+
+    try {
+      const res = await apiFetch<PickerMissionDTO>(
+        `/api/pick-stops/${encodeURIComponent(activeStop.stopRef)}/report-exception`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ kind: reportKind, note: reportNote }),
+        }
+      );
+      setMission(res);
+      setReportModal(false);
+      setReportNote('');
+      setBanner({ type: 'success', message: `Reported ${reportKind}. Bin frozen and route refreshed.` });
+    } catch (err: any) {
+      setBanner({ type: 'error', message: err.message || 'Failed to report problem' });
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -265,6 +296,18 @@ export const PickFloorPage: React.FC = () => {
                   </button>
                 </div>
               </form>
+
+              {/* Report Problem Button */}
+              <div className="pt-2 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setReportModal(true)}
+                  disabled={submitting}
+                  className="text-xs text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-3 py-1.5 rounded font-semibold"
+                >
+                  ⚠️ Report Problem (Missing / Damaged / Blocked)
+                </button>
+              </div>
             </div>
           ) : (
             /* All stops finished */

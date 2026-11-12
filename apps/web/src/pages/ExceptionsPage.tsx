@@ -2,106 +2,142 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '../api/client.js';
 import { useAuthStore } from '../stores/authStore.js';
-import { PickExceptionDto } from '@dark-storage/shared';
+import { useCan } from '../hooks/useCan.js';
 import { StatusBadge } from '../components/StatusBadge.js';
 import { Link } from 'react-router-dom';
+
+interface PickExceptionItem {
+  id: number;
+  ref: string;
+  exc_ref?: string;
+  status: 'OPEN' | 'COUNT_REQUESTED' | 'COUNT_SUBMITTED' | 'RESOLVED';
+  kind?: string;
+  type?: string;
+  mission_id?: number;
+  mission_ref?: string;
+  order_id?: number;
+  order_ref?: string;
+  stop_id?: number;
+  stop_ref?: string;
+  bin_code: string;
+  sku: string;
+  product_name?: string;
+  expected_qty?: number;
+  actual_qty?: number;
+  notes?: string;
+  raised_by?: string;
+  raised_at?: string;
+  reported_by?: any;
+  reported_at?: string;
+  escalated?: boolean;
+  age_minutes?: number;
+  due_at?: string;
+  resolved_by?: string;
+  resolution?: string;
+  resolution_reason?: string;
+  resolution_notes?: string;
+  resolved_at?: string;
+  count_task_ref?: string;
+}
 
 export const ExceptionsPage: React.FC = () => {
   const queryClient = useQueryClient();
   const { user } = useAuthStore();
-  const isManager = user?.role === 'MANAGER';
+  const canResolve = useCan('exception:resolve');
+  const canRequestCount = useCan('count:request');
 
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'OPEN' | 'RESOLVED'>('OPEN');
-  const [missionFilter, setMissionFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('OPEN');
   const [page, setPage] = useState(1);
 
   // Modal state
-  const [selectedExc, setSelectedExc] = useState<PickExceptionDto | null>(null);
-  const [resolveNotes, setResolveNotes] = useState('');
-  const [recountQty, setRecountQty] = useState<string>('');
-  const [resolveError, setResolveError] = useState('');
-  const [resolveKey, setResolveKey] = useState<string>('');
+  const [selectedExc, setSelectedExc] = useState<PickExceptionItem | null>(null);
+  const [resolveReason, setResolveReason] = useState<string>('INVENTORY_ADJUSTED');
+  const [resolveNote, setResolveNote] = useState<string>('');
+  const [unfreezeBin, setUnfreezeBin] = useState<boolean>(true);
+  const [resolveError, setResolveError] = useState<string>('');
 
   const queryParams = new URLSearchParams();
   if (statusFilter !== 'ALL') {
     queryParams.set('status', statusFilter);
   }
-  if (missionFilter.trim()) {
-    queryParams.set('mission', missionFilter.trim());
-  }
   queryParams.set('page', String(page));
   queryParams.set('page_size', '25');
 
   const { data, isLoading } = useQuery<{
-    exceptions: PickExceptionDto[];
+    items?: PickExceptionItem[];
+    exceptions?: PickExceptionItem[];
     total: number;
-    page: number;
-    page_size: number;
   }>({
-    queryKey: ['exceptions', statusFilter, missionFilter, page],
+    queryKey: ['exceptions', statusFilter, page],
     queryFn: () => apiFetch(`/api/exceptions?${queryParams.toString()}`),
-    refetchInterval: 5000
+    refetchInterval: 5000,
   });
 
-  const exceptions = data?.exceptions || [];
-  const total = data?.total || 0;
+  const exceptions = data?.items || data?.exceptions || [];
+  const total = data?.total || exceptions.length;
   const totalPages = Math.max(1, Math.ceil(total / 25));
 
-  const resolveMutation = useMutation({
-    mutationFn: (body: any) =>
-      apiFetch(`/api/exceptions/${selectedExc!.ref}/resolve`, {
+  // Request count mutation
+  const requestCountMutation = useMutation({
+    mutationFn: (excRef: string) =>
+      apiFetch(`/api/exceptions/${encodeURIComponent(excRef)}/request-count`, {
         method: 'POST',
-        headers: {
-          'Idempotency-Key': resolveKey
-        },
-        body: JSON.stringify(body)
+        body: JSON.stringify({ note: 'Recount requested by manager' }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['exceptions'] });
+      queryClient.invalidateQueries({ queryKey: ['floor-tasks'] });
+    },
+    onError: (err: any) => {
+      alert(err.message || 'Failed to request count');
+    },
+  });
+
+  // Resolve mutation
+  const resolveMutation = useMutation({
+    mutationFn: ({ ref, reasonCode, note, unfreeze }: { ref: string; reasonCode: string; note?: string; unfreeze: boolean }) =>
+      apiFetch(`/api/exceptions/${encodeURIComponent(ref)}/resolve`, {
+        method: 'POST',
+        body: JSON.stringify({ reasonCode, note, unfreeze }),
       }),
     onSuccess: () => {
       setSelectedExc(null);
       setResolveError('');
       queryClient.invalidateQueries({ queryKey: ['exceptions'] });
-      queryClient.invalidateQueries({ queryKey: ['mission'] });
-      queryClient.invalidateQueries({ queryKey: ['order'] });
       queryClient.invalidateQueries({ queryKey: ['inventory'] });
+      queryClient.invalidateQueries({ queryKey: ['warehouse'] });
     },
     onError: (err: any) => {
       setResolveError(err.message || 'Failed to resolve exception');
-    }
+    },
   });
 
-  const openResolveDialog = (exc: PickExceptionDto) => {
+  const openResolveDialog = (exc: PickExceptionItem) => {
     setSelectedExc(exc);
-    setResolveNotes('');
-    setRecountQty('');
+    setResolveReason('INVENTORY_ADJUSTED');
+    setResolveNote('');
+    setUnfreezeBin(true);
     setResolveError('');
-    setResolveKey(`resolve-${exc.ref}-${Date.now()}`);
   };
 
-  const handleResolve = (action: 'REALLOCATE' | 'ACCEPT_SHORT') => {
+  const handleResolveSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
     if (!selectedExc) return;
-
-    const payload: any = {
-      action,
-      notes: resolveNotes.trim() || undefined
-    };
-
-    if (recountQty !== '') {
-      const q = Number(recountQty);
-      if (!isNaN(q) && q >= 0) {
-        payload.recount = { counted_qty: q };
-      }
-    }
-
-    resolveMutation.mutate(payload);
+    resolveMutation.mutate({
+      ref: selectedExc.ref || selectedExc.exc_ref!,
+      reasonCode: resolveReason,
+      note: resolveNote.trim() || undefined,
+      unfreeze: unfreezeBin,
+    });
   };
 
   return (
     <div className="m3-page">
       <div className="m3-page-header">
         <div>
-          <h1>Pick Exceptions</h1>
+          <h1>Pick Exceptions & Discrepancies</h1>
           <p className="m3-subtitle">
-            Review and resolve picking problems, missing stock, and damaged items.
+            Track missing stock, damaged goods, blocked bins, blind recount tasks, and resolution audits.
           </p>
         </div>
       </div>
@@ -112,33 +148,20 @@ export const ExceptionsPage: React.FC = () => {
           <label className="form-label" style={{ margin: 0 }}>Status:</label>
           <select
             className="select"
-            style={{ width: '160px' }}
+            style={{ width: '180px' }}
             value={statusFilter}
-            onChange={(e: any) => {
+            onChange={(e) => {
               setStatusFilter(e.target.value);
               setPage(1);
             }}
             data-testid="status-filter"
           >
-            <option value="OPEN">Open Only</option>
+            <option value="OPEN">Open (All Active)</option>
+            <option value="COUNT_REQUESTED">Count Requested</option>
+            <option value="COUNT_SUBMITTED">Count Submitted</option>
             <option value="RESOLVED">Resolved Only</option>
             <option value="ALL">All Statuses</option>
           </select>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: '1 1 240px' }}>
-          <label className="form-label" style={{ margin: 0 }}>Mission:</label>
-          <input
-            type="text"
-            className="input-field"
-            placeholder="Search mission ref..."
-            value={missionFilter}
-            onChange={(e) => {
-              setMissionFilter(e.target.value);
-              setPage(1);
-            }}
-            data-testid="mission-filter"
-          />
         </div>
 
         <div style={{ marginLeft: 'auto', fontSize: '13px', color: 'var(--text-secondary)' }}>
@@ -153,14 +176,14 @@ export const ExceptionsPage: React.FC = () => {
             <tr>
               <th>Ref</th>
               <th>Status</th>
-              <th>Type</th>
-              <th>Mission / Order</th>
+              <th>Kind</th>
               <th>Location</th>
-              <th>Product</th>
-              <th>Expected / Actual</th>
-              <th>Reported By</th>
+              <th>SKU</th>
+              <th>Order</th>
+              <th>Reported By / Age</th>
+              <th>Recount Task</th>
               <th>Resolution</th>
-              {isManager && <th>Action</th>}
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -177,85 +200,109 @@ export const ExceptionsPage: React.FC = () => {
                 </td>
               </tr>
             ) : (
-              exceptions.map((exc) => (
-                <tr key={exc.id} data-testid={`exc-row-${exc.ref}`}>
-                  <td>
-                    <span style={{ fontWeight: 700, color: 'var(--accent-primary)', fontFamily: 'var(--font-mono)' }}>{exc.ref}</span>
-                  </td>
-                  <td>
-                    <StatusBadge status={exc.status} />
-                  </td>
-                  <td>
-                    <span className="badge badge-warning">{exc.type}</span>
-                  </td>
-                  <td>
-                    <div>
-                      <Link to={`/picking/${exc.mission_ref}`} style={{ color: 'var(--accent-primary)', fontFamily: 'var(--font-mono)' }}>
-                        {exc.mission_ref}
-                      </Link>
-                    </div>
-                    <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                      <Link to={`/orders/${exc.order_ref}`} style={{ color: 'inherit', fontFamily: 'var(--font-mono)' }}>
-                        {exc.order_ref}
-                      </Link>
-                    </div>
-                  </td>
-                  <td>
-                    <strong style={{ fontFamily: 'var(--font-mono)' }}>{exc.bin_code}</strong>
-                  </td>
-                  <td>
-                    <div style={{ fontWeight: 600 }}>{exc.product_name || exc.sku}</div>
-                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-                      {exc.sku}
-                    </div>
-                  </td>
-                  <td>
-                    <div>
-                      Req: <strong>{exc.expected_qty}</strong> | Picked: <strong>{exc.actual_qty}</strong>
-                    </div>
-                    {exc.notes && (
-                      <div style={{ fontSize: '12px', color: 'var(--text-secondary)', fontStyle: 'italic', marginTop: '4px' }}>
-                        "{exc.notes}"
-                      </div>
-                    )}
-                  </td>
-                  <td>
-                    <div>{exc.reported_by?.name || `User #${exc.reported_by?.id || exc.reported_by}`}</div>
-                    <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                      {new Date(exc.reported_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </div>
-                  </td>
-                  <td>
-                    {exc.resolution ? (
-                      <div>
-                        <span className="badge badge-info">{exc.resolution}</span>
-                        {exc.resolution_notes && (
-                          <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                            {exc.resolution_notes}
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>—</span>
-                    )}
-                  </td>
-                  {isManager && (
+              exceptions.map((exc) => {
+                const excRef = exc.ref || exc.exc_ref;
+                const kind = exc.kind || exc.type;
+                const reporter = exc.raised_by || (exc.reported_by?.name || exc.reported_by);
+                const isResolved = exc.status === 'RESOLVED';
+
+                return (
+                  <tr key={exc.id || excRef} data-testid={`exc-row-${excRef}`}>
                     <td>
-                      {exc.status === 'OPEN' ? (
-                        <button
-                          className="btn btn-secondary btn-sm"
-                          data-testid={`resolve-exc-btn-${exc.ref}`}
-                          onClick={() => openResolveDialog(exc)}
-                        >
-                          Resolve
-                        </button>
-                      ) : (
-                        <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Done</span>
+                      <span style={{ fontWeight: 700, color: 'var(--accent-primary)', fontFamily: 'var(--font-mono)' }}>
+                        {excRef}
+                      </span>
+                      {exc.escalated && (
+                        <div style={{ marginTop: '4px' }}>
+                          <span className="badge badge-danger" style={{ fontSize: '10px' }}>⚠️ Escalated</span>
+                        </div>
                       )}
                     </td>
-                  )}
-                </tr>
-              ))
+                    <td>
+                      <StatusBadge status={exc.status} />
+                    </td>
+                    <td>
+                      <span className="badge badge-warning">{kind}</span>
+                    </td>
+                    <td>
+                      <strong style={{ fontFamily: 'var(--font-mono)' }}>{exc.bin_code}</strong>
+                    </td>
+                    <td>
+                      <div style={{ fontWeight: 600 }}>{exc.product_name || exc.sku}</div>
+                      <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                        {exc.sku}
+                      </div>
+                    </td>
+                    <td>
+                      {exc.order_ref ? (
+                        <Link to={`/orders/${exc.order_ref}`} style={{ fontFamily: 'var(--font-mono)' }}>
+                          {exc.order_ref}
+                        </Link>
+                      ) : (
+                        <span style={{ color: 'var(--text-muted)' }}>—</span>
+                      )}
+                    </td>
+                    <td>
+                      <div>{reporter || 'Picker'}</div>
+                      <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                        {exc.age_minutes != null ? `${exc.age_minutes}m ago` : ''}
+                      </div>
+                    </td>
+                    <td>
+                      {exc.count_task_ref ? (
+                        <span className="badge badge-info" style={{ fontFamily: 'var(--font-mono)' }}>
+                          {exc.count_task_ref}
+                        </span>
+                      ) : (
+                        <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>—</span>
+                      )}
+                    </td>
+                    <td>
+                      {isResolved ? (
+                        <div>
+                          <span className="badge badge-ok">{exc.resolution || 'RESOLVED'}</span>
+                          {exc.resolution_reason && (
+                            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                              {exc.resolution_reason}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>Active</span>
+                      )}
+                    </td>
+                    <td>
+                      {!isResolved ? (
+                        <div style={{ display: 'flex', gap: '6px' }}>
+                          {canRequestCount && (
+                            <button
+                              className="btn btn-secondary btn-sm"
+                              data-testid={`request-count-btn-${excRef}`}
+                              onClick={() => requestCountMutation.mutate(excRef!)}
+                              disabled={requestCountMutation.isPending}
+                              title="Assign blind recount task to operators"
+                            >
+                              Request Count
+                            </button>
+                          )}
+                          {canResolve && (
+                            <button
+                              className="btn btn-primary btn-sm"
+                              data-testid={`resolve-exc-btn-${excRef}`}
+                              onClick={() => openResolveDialog(exc)}
+                              title="Resolve exception and unlock bin"
+                            >
+                              Resolve
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>Closed</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
@@ -287,8 +334,10 @@ export const ExceptionsPage: React.FC = () => {
       {/* Resolve Dialog Modal */}
       {selectedExc && (
         <div className="modal-backdrop">
-          <div className="modal-content" style={{ maxWidth: '580px' }}>
-            <h3 style={{ margin: '0 0 16px', fontSize: '1.25rem', fontWeight: 800 }}>Resolve Exception <span style={{ fontFamily: 'var(--font-mono)' }}>{selectedExc.ref}</span></h3>
+          <div className="modal-content" style={{ maxWidth: '540px' }}>
+            <h3 style={{ margin: '0 0 16px', fontWeight: 800 }}>
+              Resolve Exception <span style={{ fontFamily: 'var(--font-mono)' }}>{selectedExc.ref || selectedExc.exc_ref}</span>
+            </h3>
 
             {resolveError && (
               <div className="banner banner-error" style={{ marginBottom: '16px' }}>
@@ -296,7 +345,6 @@ export const ExceptionsPage: React.FC = () => {
               </div>
             )}
 
-            {/* Facts Card */}
             <div
               style={{
                 backgroundColor: 'var(--bg-surface)',
@@ -307,19 +355,9 @@ export const ExceptionsPage: React.FC = () => {
                 display: 'grid',
                 gridTemplateColumns: '1fr 1fr',
                 gap: '12px',
-                fontSize: '13px'
+                fontSize: '13px',
               }}
             >
-              <div>
-                <span style={{ color: 'var(--text-muted)' }}>Mission / Order:</span>
-                <div>
-                  <strong style={{ fontFamily: 'var(--font-mono)' }}>{selectedExc.mission_ref}</strong> / <span style={{ fontFamily: 'var(--font-mono)' }}>{selectedExc.order_ref}</span>
-                </div>
-              </div>
-              <div>
-                <span style={{ color: 'var(--text-muted)' }}>Stop Ref:</span>
-                <div style={{ fontFamily: 'var(--font-mono)' }}>{selectedExc.stop_ref}</div>
-              </div>
               <div>
                 <span style={{ color: 'var(--text-muted)' }}>Location / Bin:</span>
                 <div>
@@ -328,94 +366,82 @@ export const ExceptionsPage: React.FC = () => {
               </div>
               <div>
                 <span style={{ color: 'var(--text-muted)' }}>Product (SKU):</span>
+                <div style={{ fontFamily: 'var(--font-mono)' }}>{selectedExc.sku}</div>
+              </div>
+              <div>
+                <span style={{ color: 'var(--text-muted)' }}>Problem Kind:</span>
                 <div>
-                  {selectedExc.product_name} (<span style={{ fontFamily: 'var(--font-mono)' }}>{selectedExc.sku}</span>)
+                  <span className="badge badge-warning">{selectedExc.kind || selectedExc.type}</span>
                 </div>
               </div>
               <div>
-                <span style={{ color: 'var(--text-muted)' }}>Problem Type:</span>
+                <span style={{ color: 'var(--text-muted)' }}>Current Status:</span>
                 <div>
-                  <span className="badge badge-warning">{selectedExc.type}</span>
+                  <StatusBadge status={selectedExc.status} />
                 </div>
               </div>
-              <div>
-                <span style={{ color: 'var(--text-muted)' }}>Quantities:</span>
-                <div>
-                  Expected: <strong>{selectedExc.expected_qty}</strong> | Picked: <strong>{selectedExc.actual_qty}</strong>
-                </div>
+            </div>
+
+            <form onSubmit={handleResolveSubmit}>
+              <div className="form-group">
+                <label className="form-label">Resolution Reason Code</label>
+                <select
+                  className="select"
+                  value={resolveReason}
+                  onChange={(e) => setResolveReason(e.target.value)}
+                  data-testid="resolve-reason-select"
+                >
+                  <option value="INVENTORY_ADJUSTED">Inventory Adjusted (Discrepancy Reconciled)</option>
+                  <option value="COUNT_VERIFIED">Count Verified by Operator</option>
+                  <option value="DAMAGED_RECORDED">Damaged Goods Quarantined</option>
+                  <option value="FALSE_ALARM">False Alarm / Picker Overlooked Item</option>
+                  <option value="OTHER">Other / Administrative Override</option>
+                </select>
               </div>
-              {selectedExc.notes && (
-                <div style={{ gridColumn: 'span 2' }}>
-                  <span style={{ color: 'var(--text-muted)' }}>Picker Notes:</span>
-                  <div style={{ fontStyle: 'italic', marginTop: '2px' }}>"{selectedExc.notes}"</div>
-                </div>
-              )}
-            </div>
 
-            {/* Form Inputs */}
-            <div className="form-group">
-              <label className="form-label">
-                Resolution Notes
-              </label>
-              <textarea
-                className="input-field"
-                rows={2}
-                data-testid="resolve-notes-input"
-                placeholder="Details of manager inspection..."
-                value={resolveNotes}
-                onChange={(e) => setResolveNotes(e.target.value)}
-              />
-            </div>
+              <div className="form-group">
+                <label className="form-label">Resolution Notes</label>
+                <textarea
+                  className="input-field"
+                  rows={3}
+                  placeholder="Details of investigation and resolution..."
+                  value={resolveNote}
+                  onChange={(e) => setResolveNote(e.target.value)}
+                  data-testid="resolve-notes-input"
+                />
+              </div>
 
-            <div className="form-group" style={{ marginBottom: '24px' }}>
-              <label className="form-label">
-                Physical Count of Bin (Optional Recount)
-              </label>
-              <input
-                type="number"
-                className="input-field"
-                data-testid="exc-resolve-recount"
-                placeholder="e.g. 0 if bin is truly empty"
-                value={recountQty}
-                onChange={(e) => setRecountQty(e.target.value)}
-                min={0}
-              />
-              <span style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginTop: '6px' }}>
-                Providing a count clears the bin's quarantine recount flag and adjusts inventory.
-              </span>
-            </div>
+              <div className="form-group" style={{ marginBottom: '24px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={unfreezeBin}
+                    onChange={(e) => setUnfreezeBin(e.target.checked)}
+                    data-testid="unfreeze-checkbox"
+                  />
+                  <span>Unfreeze Bin ({selectedExc.bin_code}) for future picks and allocations</span>
+                </label>
+              </div>
 
-            {/* Action Buttons */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', flexWrap: 'wrap' }}>
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => setSelectedExc(null)}
-                disabled={resolveMutation.isPending}
-              >
-                Cancel
-              </button>
-
-              <button
-                type="button"
-                className="btn btn-warning"
-                data-testid="exc-resolve-accept-short"
-                onClick={() => handleResolve('ACCEPT_SHORT')}
-                disabled={resolveMutation.isPending}
-              >
-                {resolveMutation.isPending ? 'Resolving...' : 'Accept Short'}
-              </button>
-
-              <button
-                type="button"
-                className="btn btn-primary"
-                data-testid="exc-resolve-reallocate"
-                onClick={() => handleResolve('REALLOCATE')}
-                disabled={resolveMutation.isPending}
-              >
-                {resolveMutation.isPending ? 'Resolving...' : 'Reallocate from Other Bins'}
-              </button>
-            </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setSelectedExc(null)}
+                  disabled={resolveMutation.isPending}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={resolveMutation.isPending}
+                  data-testid="confirm-resolve-btn"
+                >
+                  {resolveMutation.isPending ? 'Resolving...' : 'Resolve & Unlock'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
